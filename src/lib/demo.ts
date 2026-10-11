@@ -1,7 +1,7 @@
-// Experiências de demonstração: dados totalmente fictícios, imagens geradas (SVG), sem pessoas reais.
+// Experiências de demonstração: textos fictícios. Fotos do Unsplash (licença gratuita) quando `img` está definido; senão, imagem gerada (SVG).
 export type DemoLetter = {
   slug: string; category: string; extra?: Record<string, string>; occasion: string; theme: string; title: string; recipient: string; sender: string; intro: string; message: string;
-  closing: string; date: string; memories: { title: string; description: string; date?: string }[]; photos: { caption: string; hue: number }[]; blurb: string;
+  closing: string; date: string; memories: { title: string; description: string; date?: string }[]; photos: { caption: string; hue: number; img?: string; credit?: string }[]; blurb: string;
 };
 
 export const DEMOS: DemoLetter[] = [
@@ -14,7 +14,7 @@ export const DEMOS: DemoLetter[] = [
       { title: 'A primeira conversa', description: 'Começou com uma pergunta simples e acabou às duas da manhã.', date: '2022-05-08' },
       { title: 'A viagem à praia', description: 'O dia em que o carro avariou e nós rimos o caminho todo.', date: '2023-08-19' },
       { title: 'O nosso café de domingo', description: 'O ritual que já ninguém nos tira.', date: '2024-11-03' }],
-    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350 }, { caption: 'O teu sorriso', hue: 10 }, { caption: 'Domingo', hue: 25 }, { caption: 'Nós', hue: 340 }],
+    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350, img: 'photo-1644041852210-4873f99366be', credit: 'Francis Odeyemi' }, { caption: 'O teu sorriso', hue: 10 }, { caption: 'Domingo', hue: 25 }, { caption: 'Nós', hue: 340 }],
   },
   {
     slug: 'pergunta-para-ti', category: 'pedido-namoro', occasion: 'Pedido de namoro', theme: 'elegante', title: 'Tenho uma pergunta para ti', recipient: 'Carla Exemplo', sender: 'Diogo Exemplo',
@@ -24,7 +24,7 @@ export const DEMOS: DemoLetter[] = [
     closing: 'Queres namorar comigo?', memories: [
       { title: 'O dia da biblioteca', description: 'Foi ali que percebi que a tua companhia era o meu sítio favorito.' },
       { title: 'A chuva inesperada', description: 'Partilhámos um guarda-chuva e nunca mais o devolvemos.' }],
-    photos: [{ caption: 'Um instante nosso', hue: 38 }, { caption: 'Onde tudo começou', hue: 30 }, { caption: 'Sempre a rir', hue: 45 }],
+    photos: [{ caption: 'Um instante nosso', hue: 38, img: 'photo-1765292783377-e2b769632228', credit: 'sammy swae' }, { caption: 'Onde tudo começou', hue: 30 }, { caption: 'Sempre a rir', hue: 45 }],
   },
   {
     slug: 'proximo-capitulo', category: 'formatura', extra: { course: 'Engenharia Informática' }, occasion: 'Formatura', theme: 'celebracao', title: 'O teu próximo capítulo começa agora', recipient: 'Eduardo Exemplo', sender: 'A tua família',
@@ -35,7 +35,7 @@ export const DEMOS: DemoLetter[] = [
       { title: 'O primeiro dia', description: 'Entraste com medo e um caderno novo.', date: '2021-09-20' },
       { title: 'A semana de exames', description: 'Café, foco e a promessa de que ia valer a pena.', date: '2025-06-12' },
       { title: 'A defesa', description: 'O dia em que todos choraram de orgulho.', date: '2026-06-30' }],
-    photos: [{ caption: 'Dia de festa', hue: 5 }, { caption: 'Com quem nunca desistiu de ti', hue: 20 }, { caption: 'O futuro é teu', hue: 350 }],
+    photos: [{ caption: 'Dia de festa', hue: 5, img: 'photo-1612214495858-4f32b96155a7', credit: 'Felipe Gregate' }, { caption: 'Com quem nunca desistiu de ti', hue: 20 }, { caption: 'O futuro é teu', hue: 350 }],
   },
   {
     slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15' },
@@ -47,7 +47,7 @@ export const DEMOS: DemoLetter[] = [
       { title: '16:00 Cerimónia', description: 'Receção dos convidados às 15:30.' },
       { title: '18:00 Copo de água', description: 'Cocktail nos jardins.' },
       { title: '20:00 Jantar e festa', description: 'Muita música e alegria.' }],
-    photos: [{ caption: 'Marta & Rui', hue: 45 }, { caption: 'O nosso caminho', hue: 30 }],
+    photos: [{ caption: 'Marta & Rui', hue: 45, img: 'photo-1695281536457-01f9a07c575b', credit: 'Samwel francis' }, { caption: 'O nosso caminho', hue: 30 }],
   },
 ];
 
@@ -58,4 +58,10 @@ export function placeholderSvg(hue: number, label: string, w = 800, h = 1000): s
 <path d="M0 ${h * 0.75} Q ${w * 0.3} ${h * 0.6} ${w * 0.6} ${h * 0.78} T ${w} ${h * 0.7} V ${h} H0Z" fill="rgba(110,31,47,.25)"/>
 <text x="50%" y="92%" text-anchor="middle" font-family="Georgia,serif" font-size="30" fill="rgba(255,255,255,.9)">Imagem de demonstração</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/** URL da foto de demonstração: Unsplash se houver `img`, senão o SVG gerado. */
+export function demoImage(p: { hue: number; img?: string }, label: string, w = 800, h = 1000): string {
+  if (p.img) return `https://images.unsplash.com/${p.img}?w=${w}&h=${h}&fit=crop&crop=faces&auto=format&q=70`;
+  return placeholderSvg(p.hue, label, w, h);
 }

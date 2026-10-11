@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { listPlans, listOccasions } from '@/lib/orders';
-import { DEMOS, placeholderSvg } from '@/lib/demo';
+import { DEMOS, demoImage } from '@/lib/demo';
 import { qrSvg } from '@/lib/qr';
 import { config } from '@/lib/config';
 import { PlanCards } from '@/components/PlanCards';
@@ -35,7 +35,7 @@ export default async function Home() {
           <div className="mx-auto w-[240px] rounded-[2.2rem] border-[7px] border-ink bg-ink p-0 shadow-2xl">
             <div className="overflow-hidden rounded-[1.7rem] bg-cream">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={placeholderSvg(350, '', 480, 520)} alt="" className="h-[230px] w-full object-cover" />
+              <img src={demoImage(DEMOS[0].photos[0], '', 480, 520)} alt="" className="h-[230px] w-full object-cover" />
               <div className="p-4 text-center">
                 <p className="text-[10px] uppercase tracking-[.25em] text-gold-deep">Para Ana Exemplo</p>
                 <p className="h-display mt-1 text-lg font-semibold leading-tight text-wine">Para a minha pessoa favorita</p>
@@ -100,7 +100,7 @@ export default async function Home() {
           {DEMOS.map(d => (
             <Link key={d.slug} href={`/exemplos/${d.slug}`} className="card overflow-hidden transition hover:-translate-y-0.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={placeholderSvg(d.photos[0].hue, d.title, 600, 420)} alt={`Imagem de demonstração para o exemplo “${d.title}”`} className="h-48 w-full object-cover" loading="lazy" />
+              <img src={demoImage(d.photos[0], d.title, 600, 420)} alt={`Imagem de demonstração para o exemplo “${d.title}”`} className="h-48 w-full object-cover" loading="lazy" />
               <div className="p-5"><span className="chip">{d.occasion}</span><p className="h-display mt-2 text-xl font-semibold text-wine">{d.title}</p><p className="text-sm text-muted">{d.blurb}</p><p className="mt-3 text-sm font-semibold text-wine">Ver exemplo →</p></div>
             </Link>
           ))}

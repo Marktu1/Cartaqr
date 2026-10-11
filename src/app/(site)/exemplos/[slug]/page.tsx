@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { DEMOS, placeholderSvg } from '@/lib/demo';
+import { DEMOS, demoImage } from '@/lib/demo';
 import { getCategory } from '@/lib/categories';
 import { LetterView, type LetterViewData } from '@/components/LetterView';
 
@@ -17,8 +17,8 @@ export default async function DemoPage(props: { params: Promise<{ slug: string }
   const d = DEMOS.find(x => x.slug === params.slug); if (!d) notFound();
   const data: LetterViewData = {
     title: d.title, recipientName: d.recipient, senderName: d.sender, intro: d.intro, mainMessage: d.message, closingMessage: d.closing, specialDate: d.date, theme: d.theme,
-    memories: d.memories, cover: { url: placeholderSvg(d.photos[0].hue, '', 900, 1200), alt: 'Imagem de demonstração' },
-    photos: d.photos.map(p => ({ url: placeholderSvg(p.hue, p.caption), caption: p.caption, alt: `Imagem de demonstração: ${p.caption}` })),
+    memories: d.memories, cover: { url: demoImage(d.photos[0], '', 900, 1200), alt: 'Imagem de demonstração' },
+    photos: d.photos.map(p => ({ url: demoImage(p, p.caption), caption: p.caption, alt: `Imagem de demonstração: ${p.caption}` })),
     video: null, audios: [], ambient: 'piano-suave', allowReply: false,
     category: d.category, extra: d.extra || {}, demo: true, rsvp: getCategory(d.category).rsvp ? { open: true } : undefined,
   };
