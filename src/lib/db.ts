@@ -114,6 +114,9 @@ export function getDb(): DB {
   ensure('occasions', 'kind', "TEXT NOT NULL DEFAULT 'carta'");
   ensure('letters', 'extra', 'TEXT');
   ensure('letter_replies', 'kind', "TEXT NOT NULL DEFAULT 'message'");
+  ensure('letter_replies', 'open_at', 'TEXT');
+  ensure('letters', 'experience', 'TEXT');
+  ensure('memories', 'place', "TEXT NOT NULL DEFAULT ''");
   g.__cartaDb = db;
   return db;
 }

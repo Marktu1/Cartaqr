@@ -12,6 +12,6 @@ export default async function AdminPreview(props: { params: Promise<{ id: string
   const params = await props.params;
   const order = O.getOrderById(Number(params.id)); if (!order) notFound();
   const letter = O.getLetterByOrder(order.id)!;
-  const data = { ...buildLetterView(order, letter, { ttl: 3600 }), demo: true };
+  const data = { ...buildLetterView(order, letter, { ttl: 3600, reveal: true }), demo: true };
   return (<><div className="bg-gold/20 px-4 py-2 text-center text-sm font-semibold">Pré-visualização do administrador · estado: {order.order_status} · as respostas não são enviadas</div><LetterView data={data} /></>);
 }

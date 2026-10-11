@@ -7,6 +7,7 @@ import { getSettings, getSetting } from './settings';
 import { removeFile, removeOrderDir, saveBuffer, validateUpload, MediaKind } from './storage';
 import { LetterPatch } from './validation';
 import { getCategory, sanitizeExtra, missingRequired } from './categories';
+import { sanitizeExperience } from './experience';
 import { notifyWhatsApp } from './notifications';
 import { config } from './config';
 
@@ -114,6 +115,7 @@ export function updateLetter(order: Row, patch: LetterPatch, actor: 'customer' |
   if (patch.musicRightsAck !== undefined) set('music_rights_ack', patch.musicRightsAck ? 1 : 0);
   if (patch.allowReply !== undefined) set('allow_reply', (patch.allowReply || getCategory(order.occasion).proposal) ? 1 : 0);
   if (patch.extra !== undefined) set('extra', JSON.stringify(sanitizeExtra(order.occasion, { ...parseExtra(letter.extra), ...patch.extra })));
+  if (patch.experience !== undefined) set('experience', JSON.stringify(sanitizeExperience(patch.experience)));
   if (patch.recipientName !== undefined) set('recipient_name', cleanText(patch.recipientName, 80));
   if (patch.senderName !== undefined) set('sender_name', cleanText(patch.senderName, 80));
   if (patch.unlockAt !== undefined) {
@@ -133,7 +135,7 @@ export function updateLetter(order: Row, patch: LetterPatch, actor: 'customer' |
   if (patch.memories) {
     run('DELETE FROM memories WHERE letter_id = ?', letter.id);
     patch.memories.filter(m => m.title || m.description).forEach((m, i) =>
-      run('INSERT INTO memories(letter_id, title, description, date, sort_order) VALUES(?,?,?,?,?)', letter.id, cleanText(m.title, 100), cleanText(m.description, 600), m.date || null, i));
+      run('INSERT INTO memories(letter_id, title, description, date, place, sort_order) VALUES(?,?,?,?,?,?)', letter.id, cleanText(m.title, 100), cleanText(m.description, 600), m.date || null, cleanText(m.place || '', 80), i));
   }
   touch(order.id);
 }
@@ -384,8 +386,9 @@ export function changePlanOrOccasion(order: Row, input: { planId?: number; occas
 }
 
 // ---------------- Respostas (pedidos) e confirmações de presença (eventos) ----------------
-export function addReply(letter: Row, kind: 'message' | 'answer', author: string, message: string) {
-  run('INSERT INTO letter_replies(letter_id, kind, author, message) VALUES(?,?,?,?)', letter.id, kind, cleanText(author, 60), cleanText(message, 1000));
+export type ReplyKind = 'message' | 'answer' | 'reaction' | 'voucher' | 'capsule';
+export function addReply(letter: Row, kind: ReplyKind, author: string, message: string, openAt: string | null = null) {
+  run('INSERT INTO letter_replies(letter_id, kind, author, message, open_at) VALUES(?,?,?,?,?)', letter.id, kind, cleanText(author, 60), cleanText(message, 1000), openAt);
 }
 export function listReplies(letterId: number): Row[] { return all('SELECT * FROM letter_replies WHERE letter_id = ? ORDER BY id DESC', letterId); }
 
