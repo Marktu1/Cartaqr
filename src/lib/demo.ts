@@ -14,7 +14,7 @@ export const DEMOS: DemoLetter[] = [
       { title: 'A primeira conversa', description: 'Começou com uma pergunta simples e acabou às duas da manhã.', date: '2022-05-08' },
       { title: 'A viagem à praia', description: 'O dia em que o carro avariou e nós rimos o caminho todo.', date: '2023-08-19' },
       { title: 'O nosso café de domingo', description: 'O ritual que já ninguém nos tira.', date: '2024-11-03' }],
-    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350, img: 'photo-1644041852210-4873f99366be', credit: 'Francis Odeyemi' }, { caption: 'O teu sorriso', hue: 10 }, { caption: 'Domingo', hue: 25 }, { caption: 'Nós', hue: 340 }],
+    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350, img: 'photo-1644041852210-4873f99366be', credit: 'Francis Odeyemi' }, { caption: 'O teu sorriso', hue: 10, img: 'photo-1508002366005-75a695ee2d17', credit: 'Isaiah McClean' }, { caption: 'Domingo', hue: 25, img: 'photo-1743172086091-b95acd708315', credit: 'Shawn Clark' }, { caption: 'Nós', hue: 340, img: 'photo-1655683576616-c40706fa79f2', credit: 'Iwaria Inc.' }],
   },
   {
     slug: 'pergunta-para-ti', category: 'pedido-namoro', occasion: 'Pedido de namoro', theme: 'elegante', title: 'Tenho uma pergunta para ti', recipient: 'Carla Exemplo', sender: 'Diogo Exemplo',
@@ -24,7 +24,7 @@ export const DEMOS: DemoLetter[] = [
     closing: 'Queres namorar comigo?', memories: [
       { title: 'O dia da biblioteca', description: 'Foi ali que percebi que a tua companhia era o meu sítio favorito.' },
       { title: 'A chuva inesperada', description: 'Partilhámos um guarda-chuva e nunca mais o devolvemos.' }],
-    photos: [{ caption: 'Um instante nosso', hue: 38, img: 'photo-1765292783377-e2b769632228', credit: 'sammy swae' }, { caption: 'Onde tudo começou', hue: 30 }, { caption: 'Sempre a rir', hue: 45 }],
+    photos: [{ caption: 'Um instante nosso', hue: 38, img: 'photo-1765292783377-e2b769632228', credit: 'sammy swae' }, { caption: 'Onde tudo começou', hue: 30, img: 'photo-1682107845065-f89ebccb1523', credit: 'Ruben Cabango' }, { caption: 'Sempre a rir', hue: 45, img: 'photo-1611619669093-ea9860cf027f', credit: 'Gama. Films' }],
   },
   {
     slug: 'proximo-capitulo', category: 'formatura', extra: { course: 'Engenharia Informática' }, occasion: 'Formatura', theme: 'celebracao', title: 'O teu próximo capítulo começa agora', recipient: 'Eduardo Exemplo', sender: 'A tua família',
@@ -35,7 +35,7 @@ export const DEMOS: DemoLetter[] = [
       { title: 'O primeiro dia', description: 'Entraste com medo e um caderno novo.', date: '2021-09-20' },
       { title: 'A semana de exames', description: 'Café, foco e a promessa de que ia valer a pena.', date: '2025-06-12' },
       { title: 'A defesa', description: 'O dia em que todos choraram de orgulho.', date: '2026-06-30' }],
-    photos: [{ caption: 'Dia de festa', hue: 5, img: 'photo-1612214495858-4f32b96155a7', credit: 'Felipe Gregate' }, { caption: 'Com quem nunca desistiu de ti', hue: 20 }, { caption: 'O futuro é teu', hue: 350 }],
+    photos: [{ caption: 'Dia de festa', hue: 5, img: 'photo-1612214495858-4f32b96155a7', credit: 'Felipe Gregate' }, { caption: 'Com quem nunca desistiu de ti', hue: 20, img: 'photo-1594750852532-822048f24b14', credit: 'Nqobile Vundla' }, { caption: 'O futuro é teu', hue: 350, img: 'photo-1594750852563-5ed8e0421d40', credit: 'Nqobile Vundla' }],
   },
   {
     slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15' },
@@ -47,7 +47,7 @@ export const DEMOS: DemoLetter[] = [
       { title: '16:00 Cerimónia', description: 'Receção dos convidados às 15:30.' },
       { title: '18:00 Copo de água', description: 'Cocktail nos jardins.' },
       { title: '20:00 Jantar e festa', description: 'Muita música e alegria.' }],
-    photos: [{ caption: 'Marta & Rui', hue: 45, img: 'photo-1695281536457-01f9a07c575b', credit: 'Samwel francis' }, { caption: 'O nosso caminho', hue: 30 }],
+    photos: [{ caption: 'Marta & Rui', hue: 45, img: 'photo-1695281536457-01f9a07c575b', credit: 'Samwel francis' }, { caption: 'O nosso caminho', hue: 30, img: 'photo-1595157724160-4aca7d33ea23', credit: 'Roman Derrick Okello' }],
   },
 ];
 
