@@ -24,7 +24,7 @@ export default async function DemoPage(props: { params: Promise<{ slug: string }
   };
   return (
     <>
-      <div className="sticky top-16 z-30 border-b border-gold/30 bg-gold/15 px-4 py-2 text-center text-sm">
+      <div className="sticky top-12 z-30 border-b border-gold/30 bg-gold/15 px-4 py-2 text-center text-sm">
         <strong>Exemplo fictício</strong> · nomes e imagens de demonstração. <Link href="/criar" className="font-semibold text-wine underline">Criar a minha</Link>
       </div>
       <LetterView data={data} />

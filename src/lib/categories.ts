@@ -26,6 +26,7 @@ const eventExtra = (dressHint = 'Ex.: Traje social'): ExtraField[] => [
   { key: 'mapUrl', label: 'Link do mapa (opcional)', type: 'url', placeholder: 'https://maps.google.com/…', hint: 'Cola o link de partilha do Google Maps.' },
   { key: 'dressCode', label: 'Código de vestuário (opcional)', type: 'text', placeholder: dressHint, max: 80 },
   { key: 'rsvpDeadline', label: 'Confirmar presença até (opcional)', type: 'date' },
+  { key: 'gift', label: 'Presente: lista ou dados para oferta (opcional)', type: 'textarea', placeholder: 'Ex.: A vossa presença é o nosso maior presente. Se quiserem contribuir: IBAN AO06 0000 0000 0000 0000 0000 0', max: 400, hint: 'Aparece numa secção “Presente” com um botão para copiar.' },
 ];
 
 const eventBase = {
@@ -298,7 +299,7 @@ export function missingRequired(slug: string, extra: Record<string, string>, spe
 export type Derived = {
   subtitle?: string; quote?: { label: string; text: string }; list?: { title: string; items: string[] };
   proposal?: { question: string; yes: string; no: string; thanksYes: string; thanksNo: string };
-  event?: { time?: string; venue?: string; address?: string; mapUrl?: string; dressCode?: string; rsvpDeadline?: string };
+  event?: { time?: string; venue?: string; address?: string; mapUrl?: string; dressCode?: string; rsvpDeadline?: string; gift?: string };
   countdown?: { target: string; label: string; past: string };
 };
 export function derive(slug: string, extra: Record<string, string>, specialDate?: string | null): Derived {
@@ -316,7 +317,7 @@ export function derive(slug: string, extra: Record<string, string>, specialDate?
   else if (extra.insideJoke) d.quote = { label: 'A nossa piada', text: extra.insideJoke };
   if (extra.reasons) d.list = { title: 'Razões para te amar', items: extra.reasons.split(/\n+/).map(x => x.trim()).filter(Boolean).slice(0, 20) };
   if (cat.proposal) d.proposal = { ...cat.proposal, question: extra.question || cat.proposal.question, yes: extra.yes || cat.proposal.yes, no: extra.no || cat.proposal.no };
-  if (cat.kind === 'evento') d.event = { time: extra.time, venue: extra.venue, address: extra.address, mapUrl: extra.mapUrl, dressCode: extra.dressCode, rsvpDeadline: extra.rsvpDeadline };
+  if (cat.kind === 'evento') d.event = { time: extra.time, venue: extra.venue, address: extra.address, mapUrl: extra.mapUrl, dressCode: extra.dressCode, rsvpDeadline: extra.rsvpDeadline, gift: extra.gift?.trim() || undefined };
   if (cat.countdown) {
     const target = cat.countdown.source === 'date' ? specialDate : extra[cat.countdown.key || ''];
     if (target) d.countdown = { target, label: cat.countdown.label, past: cat.countdown.past || '' };

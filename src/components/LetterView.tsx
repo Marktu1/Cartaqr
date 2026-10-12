@@ -1,10 +1,12 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { themeStyle } from '@/lib/themes';
 import { getCategory, kickerFor, derive } from '@/lib/categories';
 import { AmbientPlayer } from './AmbientPlayer';
 import { ReplyForm } from './ReplyForm';
 import { RsvpForm } from './RsvpForm';
+import { Envelope, sealInitials } from './letter/Envelope';
+import { ScratchDate } from './letter/ScratchDate';
 
 export type LetterViewData = {
   title: string; recipientName: string; senderName: string; intro: string; mainMessage: string; closingMessage: string; specialDate: string;
@@ -72,8 +74,50 @@ function Proposal({ p, token, demo }: { p: NonNullable<ReturnType<typeof derive>
   );
 }
 
+const PROGRAM_ICON: [RegExp, string][] = [[/cerim|igreja|missa|b[eê]n[cç]/i, '♡'], [/drink|cocktail|copo|brinde|recep/i, '✧'], [/jantar|almo[cç]o|refei/i, '✦'], [/festa|dan[cç]a|m[uú]sica|dj/i, '♪'], [/bolo|corte/i, '❋']];
+function splitTime(title: string) { const m = title.match(/^\s*(\d{1,2}[:h]\d{2})\s*[-–·]?\s*(.*)$/); return m ? { time: m[1].replace('h', ':'), rest: m[2] || title } : { time: '', rest: title }; }
+
+/** Programa do evento numa linha do tempo com medalhões dourados. */
+function ProgramTimeline({ title, items }: { title: string; items: { title: string; description: string }[] }) {
+  return (
+    <section aria-label={title} className="mt-14">
+      <h2 className="font-script reveal mb-8 text-center text-[44px] leading-tight text-[var(--c-accent)]">{title}</h2>
+      <ol className="relative mx-auto max-w-md">
+        <span className="absolute bottom-6 left-1/2 top-6 w-px -translate-x-1/2 bg-[var(--c-accent)] opacity-30" aria-hidden />
+        {items.map((m, i) => {
+          const { time, rest } = splitTime(m.title); const icon = PROGRAM_ICON.find(([re]) => re.test(rest))?.[1] || '◆';
+          return (
+            <li key={i} className="reveal relative mb-8 grid grid-cols-[1fr_56px_1fr] items-center gap-3 last:mb-0">
+              <p className="h-display text-right text-xl font-semibold">{time}</p>
+              <span className="relative z-10 mx-auto flex h-14 w-14 items-center justify-center rounded-full text-xl text-[#5E4416] shadow-[0_6px_14px_-6px_rgba(0,0,0,.45)]" style={{ background: 'radial-gradient(circle at 35% 30%, #F1DCA5, #D4AF62 45%, #A57E33)' }} aria-hidden>{icon}</span>
+              <div><p className="h-display text-lg font-semibold leading-tight">{rest}</p>{m.description && <p className="mt-0.5 text-sm opacity-75">{m.description}</p>}</div>
+            </li>);
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function GiftSection({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* sem permissão: o texto continua visível para copiar à mão */ }
+  }
+  return (
+    <section aria-labelledby="gift-t" className="reveal mt-14 overflow-hidden rounded-xl2 p-7 text-center shadow-soft" style={{ background: 'var(--c-accent)', color: 'var(--c-bg)' }}>
+      <span className="text-2xl" aria-hidden>🎁</span>
+      <h2 id="gift-t" className="font-script mt-1 text-[44px] leading-tight">Presente</h2>
+      <p className="mx-auto mt-3 max-w-sm whitespace-pre-line leading-relaxed opacity-90">{text}</p>
+      <button type="button" onClick={copy} className="btn mt-6 border border-current bg-transparent">{copied ? 'Copiado ✓' : 'Copiar dados'}</button>
+      <p className="sr-only" aria-live="polite">{copied ? 'Dados copiados.' : ''}</p>
+    </section>
+  );
+}
+
 export function LetterView({ data, startOpen = false, embedded = false }: { data: LetterViewData; startOpen?: boolean; embedded?: boolean }) {
   const [opened, setOpened] = useState(startOpen);
+  const [envelope, setEnvelope] = useState(!startOpen && !embedded);
+  const openFromEnvelope = useCallback(() => { setEnvelope(false); setOpened(true); window.scrollTo(0, 0); }, []);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const ref = useReveal();
   const cat = getCategory(data.category);
@@ -82,9 +126,12 @@ export function LetterView({ data, startOpen = false, embedded = false }: { data
   const isEvent = cat.kind === 'evento';
   const date = data.specialDate ? fmtDate(data.specialDate, isEvent) : '';
   const mapsOk = d.event?.mapUrl && /^https?:\/\//i.test(d.event.mapUrl);
+  const scratch = isEvent && !!data.specialDate;
+  const [dateRevealed, setDateRevealed] = useState(!scratch);
+  const revealDate = useCallback(() => setDateRevealed(true), []);
 
   return (
-    <div ref={ref} style={themeStyle(data.theme)} className={`relative w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-ink)] ${embedded ? '' : 'min-h-screen'}`}>
+    <div ref={ref} style={themeStyle(data.theme)} className={`letter-scope relative w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-ink)] ${embedded ? '' : 'min-h-screen'}`}>
       <header className="relative flex min-h-[70vh] flex-col items-center justify-end overflow-hidden px-6 pb-12 pt-24 text-center" style={embedded ? { minHeight: 420 } : undefined}>
         {data.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -94,9 +141,10 @@ export function LetterView({ data, startOpen = false, embedded = false }: { data
         <div className="relative z-10 max-w-md text-white fade-up">
           <p className="mb-2 text-2xl opacity-90" aria-hidden>{cat.glyph}</p>
           <p className="mb-3 text-sm uppercase tracking-[0.25em] opacity-90">{kickerFor(cat, data.recipientName)}</p>
-          <h1 className="h-display text-4xl font-semibold leading-tight sm:text-5xl">{data.title || 'A tua surpresa'}</h1>
+          {isEvent && data.senderName && <p className="font-script mb-2 text-[52px] leading-[1.05] sm:text-[64px]">{data.senderName}</p>}
+          <h1 className={`h-display font-semibold leading-tight ${isEvent && data.senderName ? 'text-2xl sm:text-3xl' : 'text-4xl sm:text-5xl'}`}>{data.title || 'A tua surpresa'}</h1>
           {d.subtitle && <p className="mt-3 text-sm uppercase tracking-[.18em] opacity-90">{d.subtitle}</p>}
-          {isEvent && date && <p className="mt-3 text-lg opacity-95">{date}{d.event?.time ? ` · ${d.event.time}` : ''}</p>}
+          {isEvent && date && dateRevealed && <p className="mt-3 text-lg opacity-95">{date}{d.event?.time ? ` · ${d.event.time}` : ''}</p>}
           {data.intro && <p className="mx-auto mt-4 max-w-sm text-lg opacity-95">{data.intro}</p>}
           {!opened && <button onClick={() => setOpened(true)} className="btn mt-8 bg-white text-[#4E1421] shadow-soft hover:bg-white/90">{cat.open}</button>}
         </div>
@@ -111,15 +159,16 @@ export function LetterView({ data, startOpen = false, embedded = false }: { data
             </section>
           )}
 
-          {d.countdown && <Countdown {...d.countdown} />}
+          {scratch && <ScratchDate date={data.specialDate} onReveal={revealDate} />}
+
+          {d.countdown && dateRevealed && <Countdown {...d.countdown} />}
 
           {isEvent && d.event && (
             <section aria-label="Detalhes do evento" className="reveal mb-8 rounded-xl2 bg-[var(--c-card)] p-5 shadow-soft">
               <dl className="grid gap-4 text-center sm:grid-cols-2 sm:text-left">
-                {date && <div><dt className="text-xs uppercase tracking-[.2em] opacity-60">Data</dt><dd className="h-display text-lg">{date}</dd></div>}
+                {date && dateRevealed && <div><dt className="text-xs uppercase tracking-[.2em] opacity-60">Data</dt><dd className="h-display text-lg">{date}</dd></div>}
                 {d.event.time && <div><dt className="text-xs uppercase tracking-[.2em] opacity-60">Hora</dt><dd className="h-display text-lg">{d.event.time}</dd></div>}
                 {d.event.venue && <div><dt className="text-xs uppercase tracking-[.2em] opacity-60">Local</dt><dd className="h-display text-lg">{d.event.venue}</dd>{d.event.address && <dd className="text-sm opacity-80">{d.event.address}</dd>}</div>}
-                {d.event.dressCode && <div><dt className="text-xs uppercase tracking-[.2em] opacity-60">Vestuário</dt><dd className="h-display text-lg">{d.event.dressCode}</dd></div>}
               </dl>
               {mapsOk && <a href={d.event.mapUrl} target="_blank" rel="noopener noreferrer nofollow" className="btn mt-5 w-full" style={accentBtn}>Ver no mapa</a>}
             </section>
@@ -152,7 +201,17 @@ export function LetterView({ data, startOpen = false, embedded = false }: { data
               <ol className="space-y-2">{d.list.items.map((it, i) => <li key={i} className="flex gap-3 rounded-xl bg-[var(--c-card)] p-3 shadow-soft"><span className="h-display font-semibold text-[var(--c-accent)]">{i + 1}</span><span>{it}</span></li>)}</ol></section>
           )}
 
-          {data.memories.length > 0 && (
+          {isEvent && data.memories.length > 0 && <ProgramTimeline title={cat.memories.publicTitle} items={data.memories} />}
+
+          {isEvent && d.event?.dressCode && (
+            <section aria-labelledby="dress-t" className="reveal mt-14 rounded-xl2 bg-[var(--c-card)] p-7 text-center shadow-soft">
+              <h2 id="dress-t" className="font-script text-[44px] leading-tight text-[var(--c-accent)]">Dress code</h2>
+              <p className="h-display mt-2 text-xl">{d.event.dressCode}</p>
+              <p className="mt-1 text-sm opacity-70">Vem a rigor, vai ficar nas fotografias.</p>
+            </section>
+          )}
+
+          {!isEvent && data.memories.length > 0 && (
             <section aria-label={cat.memories.publicTitle} className="mt-12">
               <h2 className="h-display reveal mb-6 text-center text-2xl text-[var(--c-accent)]">{cat.memories.publicTitle}</h2>
               <ol className="relative ml-3 border-l-2 border-[var(--c-accent)]/30 pl-6">
@@ -177,12 +236,21 @@ export function LetterView({ data, startOpen = false, embedded = false }: { data
           )}
 
           {d.proposal && <Proposal p={d.proposal} token={data.replyToken} demo={data.demo} />}
+          {isEvent && d.event?.gift && <GiftSection text={d.event.gift} />}
+          {isEvent && data.rsvp && data.rsvp.open && (
+            <p className="mt-14 flex items-center justify-center gap-2 text-center text-sm opacity-75">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+              Este convite é pessoal e intransmissível. Confirma só a tua presença e a de quem vem contigo.
+            </p>
+          )}
           {isEvent && data.rsvp && <RsvpForm token={data.replyToken || ''} open={data.rsvp.open} reason={data.rsvp.reason} deadline={d.event?.rsvpDeadline} demo={data.demo} />}
           {!d.proposal && !isEvent && data.allowReply && data.replyToken && <ReplyForm token={data.replyToken} />}
 
           <footer className="mt-16 flex flex-col items-center gap-1 text-center text-xs opacity-70">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/logo-mark.png" alt="" width={28} height={30} className="h-7 w-auto" />Criado com Carta QR</footer>
         </main>
       )}
+
+      {envelope && <Envelope kicker={kickerFor(cat, data.recipientName)} initials={sealInitials(data.senderName || data.recipientName)} hint={isEvent ? 'Toca no selo para abrir o convite' : 'Toca no selo para abrir a tua carta'} onOpened={openFromEnvelope} />}
 
       {lightbox !== null && (
         <div role="dialog" aria-modal="true" aria-label="Fotografia ampliada" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4" onClick={() => setLightbox(null)}>

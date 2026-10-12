@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fontes alojadas no próprio site (sem depender do Google Fonts) */
+@font-face { font-family: 'Inter'; src: url('/fonts/inter-latin-var.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Great Vibes'; src: url('/fonts/great-vibes-latin.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+
 :root {
   --c-bg: #FAF8F3; --c-card: #FFFEFB; --c-accent: #521328; --c-soft: #F3E6E8; --c-ink: #2A1D22;
   --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
@@ -9,6 +13,7 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --ease-apple: cubic-bezier(.28, .11, .32, 1);
+  --font-script: 'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive;
 }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body { background: #fff; color: #1D1A1C; font-family: var(--font-sans); font-size: 17px; line-height: 1.47; letter-spacing: -.022em; -webkit-font-smoothing: antialiased; }
@@ -58,6 +63,26 @@ body { background: #fff; color: #1D1A1C; font-family: var(--font-sans); font-siz
 .rv-on [data-rv].in { opacity: 1; transform: none; }
 /* Menu de vidro */
 .glass { background: rgba(255,255,255,.72); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); }
+/* Caligrafia para nomes e títulos de convites */
+.font-script { font-family: var(--font-script); font-weight: 400; letter-spacing: 0; }
+
+/* Envelope com selo de cera */
+.env { perspective: 1200px; }
+.env-flap { transform-origin: 50% 0; transition: transform .7s cubic-bezier(.6,.05,.3,1); }
+.env.open .env-flap { transform: rotateX(180deg); }
+.env-seal { transition: transform .45s ease, opacity .45s ease; }
+.env.open .env-seal { transform: translate(-50%, -50%) scale(.6) !important; opacity: 0; }
+.env-letter { transition: transform .8s cubic-bezier(.2,.8,.2,1) .45s; }
+.env.open .env-letter { transform: translateY(-58%); }
+@keyframes sealPulse { 0%, 100% { box-shadow: 0 6px 16px rgba(0,0,0,.35), 0 0 0 0 rgba(201,164,92,.55); } 50% { box-shadow: 0 6px 16px rgba(0,0,0,.35), 0 0 0 14px rgba(201,164,92,0); } }
+.env-seal-pulse { animation: sealPulse 2.2s ease-in-out infinite; }
+.env-overlay { transition: opacity .6s ease 1.25s; }
+.env-overlay.leaving { opacity: 0; }
+
+/* Dentro da carta, os rótulos seguem as cores do tema (também nos temas escuros) */
+.letter-scope .label { color: var(--c-ink); }
+.letter-scope .hint { color: var(--c-ink); opacity: .7; }
+
 .letter-paper { background: var(--c-card); color: var(--c-ink); }
 .print-only { display: none; }
 @media print {

@@ -38,7 +38,7 @@ export const DEMOS: DemoLetter[] = [
     photos: [{ caption: 'Dia de festa', hue: 5 }, { caption: 'Com quem nunca desistiu de ti', hue: 20 }, { caption: 'O futuro é teu', hue: 350 }],
   },
   {
-    slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15' },
+    slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15', gift: 'A vossa presença é o nosso maior presente. Se quiserem contribuir para a nossa lua de mel:\nIBAN AO06 0000 0000 0000 0000 0000 0 (exemplo)' },
     occasion: 'Convite de casamento', theme: 'gala', title: 'Vamos celebrar o nosso sim', recipient: 'Família e amigos', sender: 'Marta & Rui Exemplo',
     blurb: 'Convite digital com confirmação de presença.', date: '2027-06-19',
     intro: 'Duas famílias, um só coração. Queremos-te connosco neste dia.',
