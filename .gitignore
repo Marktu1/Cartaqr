@@ -13,3 +13,4 @@ data
 *.key
 .session-secret
 .data-key
+tests/browser/*.png
