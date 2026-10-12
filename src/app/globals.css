@@ -225,3 +225,13 @@ html.lenis, html.lenis body { height: auto; }
   .hero-in, .hero-phone, .hero-qr, .page-transition { animation: none !important; }
   .motion-ready [data-reveal] * { opacity: 1 !important; transform: none !important; }
 }
+
+/* Formulários dentro das cartas seguem as cores do tema (ex.: Gala e Luz de velas são escuros) */
+.letter-root .label, .letter-root legend { color: var(--c-ink); }
+.letter-root .hint, .letter-root .text-muted { color: color-mix(in srgb, var(--c-ink) 70%, transparent); }
+.letter-root .btn-primary { background: var(--c-accent); color: var(--c-bg); }
+.letter-root .btn-primary:hover { filter: brightness(1.08); }
+.letter-root .field { border-color: color-mix(in srgb, var(--c-accent) 35%, transparent); }
+.letter-root .field:focus { border-color: var(--c-accent); }
+.letter-root select.field option { color: #2A1D22; }
+.secret-card:not(.is-open) .label { color: inherit; }
