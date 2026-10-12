@@ -10,13 +10,13 @@ export const FAQ_ITEMS = [
 ];
 export function Faq() {
   return (
-    <div className="mx-auto max-w-3xl divide-y divide-wine/10 rounded-xl2 border border-wine/10 bg-paper">
+    <div className="mx-auto max-w-3xl divide-y divide-black/10 border-y border-black/10">
       {FAQ_ITEMS.map(f => (
-        <details key={f.q} className="group p-5">
-          <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink">
-            {f.q}<span className="text-xl text-gold-deep transition group-open:rotate-45" aria-hidden>+</span>
+        <details key={f.q} className="group py-5">
+          <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-4 text-[19px] font-semibold tracking-[-.01em] text-ink">
+            {f.q}<span className="text-2xl font-light text-muted transition-transform duration-300 group-open:rotate-45" aria-hidden>+</span>
           </summary>
-          <p className="mt-2 text-muted">{f.a}</p>
+          <p className="mt-2 max-w-[60ch] text-[17px] leading-relaxed text-muted">{f.a}</p>
         </details>
       ))}
     </div>

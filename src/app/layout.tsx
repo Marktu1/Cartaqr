@@ -11,8 +11,18 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image' },
 };
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#FAF8F3' };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#ffffff' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (<html lang="pt-AO"><body className="min-h-screen antialiased">{children}</body></html>);
+  return (
+    <html lang="pt-AO">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+      </head>
+      <body className="min-h-screen antialiased">{children}</body>
+    </html>
+  );
 }

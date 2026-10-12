@@ -5,27 +5,45 @@
 :root {
   --c-bg: #FAF8F3; --c-card: #FFFEFB; --c-accent: #521328; --c-soft: #F3E6E8; --c-ink: #2A1D22;
   --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Pilha estilo Apple: SF Pro nos dispositivos Apple, Inter (carregada no layout) nos restantes. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ease-apple: cubic-bezier(.28, .11, .32, 1);
 }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-body { background: #FAF8F3; color: #2A1D22; font-family: var(--font-sans); }
+body { background: #fff; color: #1D1A1C; font-family: var(--font-sans); font-size: 17px; line-height: 1.47; letter-spacing: -.022em; -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 3px solid #C9A45C; outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 
 @layer components {
-  .btn { @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-semibold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply bg-wine text-white shadow-soft hover:bg-wine-dark; }
-  .btn-secondary { @apply border-2 border-wine/25 bg-paper text-wine hover:border-wine/50 hover:bg-rose-soft/40; }
-  .btn-ghost { @apply text-wine hover:bg-rose-soft/50; }
+  /* Botões em pílula (padrão Apple: um cheio + um com contorno) */
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-[22px] py-2.5 text-[15px] font-medium tracking-[-.01em] transition-colors duration-300 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply bg-wine text-white hover:bg-wine-dark; }
+  .btn-secondary { @apply border border-wine text-wine hover:bg-wine hover:text-white; }
+  .btn-light { @apply bg-white text-wine hover:bg-mist; }
+  .btn-outline-light { @apply border border-white/80 text-white hover:bg-white hover:text-night; }
+  .btn-ghost { @apply text-wine hover:bg-mist; }
   .btn-danger { @apply bg-red-700 text-white hover:bg-red-800; }
-  .btn-sm { @apply min-h-[40px] px-4 py-2 text-sm; }
-  .card { @apply rounded-xl2 border border-wine/10 bg-paper shadow-soft; }
-  .field { @apply w-full min-h-[48px] rounded-xl border-2 border-wine/15 bg-white px-4 py-3 text-base text-ink placeholder:text-muted/70 focus:border-wine/60 focus:outline-none; }
+  .btn-sm { @apply min-h-[36px] px-4 py-1.5 text-[13px]; }
+  .card { @apply rounded-[22px] border border-black/[.06] bg-white; }
+  .field { @apply w-full min-h-[48px] rounded-xl border border-black/15 bg-white px-4 py-3 text-base text-ink placeholder:text-muted/70 transition-colors focus:border-wine focus:outline-none focus:ring-4 focus:ring-wine/10; }
   .label { @apply mb-1.5 block text-sm font-semibold text-ink; }
   .hint { @apply mt-1 text-sm text-muted; }
   .section { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
+  .wrap { @apply mx-auto w-full max-w-[1000px] px-5 sm:px-6; }
+  .wrap-wide { @apply mx-auto w-full max-w-[1400px] px-3; }
   .h-display { font-family: var(--font-display); @apply tracking-tight; }
   .chip { @apply inline-flex items-center rounded-full bg-rose-soft px-3 py-1 text-xs font-semibold text-wine; }
+
+  /* Tipografia estilo Apple: títulos grandes, curtos, peso 600, espaçamento negativo */
+  .t-hero { font-family: var(--font-head); font-size: clamp(40px, 6.4vw, 80px); line-height: 1.05; font-weight: 600; letter-spacing: -.015em; }
+  .t-section { font-family: var(--font-head); font-size: clamp(32px, 4.6vw, 56px); line-height: 1.07; font-weight: 600; letter-spacing: -.005em; }
+  .t-tile { font-family: var(--font-head); font-size: clamp(28px, 3.2vw, 40px); line-height: 1.1; font-weight: 600; letter-spacing: 0; }
+  .t-sub { font-family: var(--font-head); font-size: clamp(19px, 2vw, 28px); line-height: 1.17; font-weight: 400; letter-spacing: .007em; }
+  .t-lead { font-family: var(--font-head); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.38; font-weight: 400; letter-spacing: .011em; }
+  .t-eyebrow { font-family: var(--font-head); font-size: clamp(15px, 1.4vw, 19px); line-height: 1.2; font-weight: 600; letter-spacing: .012em; }
+  .link-more { @apply inline-flex items-center gap-1 text-[17px] text-wine hover:underline; }
+  .link-more::after { content: '›'; font-size: 1.15em; line-height: 1; }
 }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -35,6 +53,11 @@ body { background: #FAF8F3; color: #2A1D22; font-family: var(--font-sans); }
 .snap-x-row { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .snap-x-row::-webkit-scrollbar { display: none; }
 .snap-x-row > * { scroll-snap-align: center; flex: 0 0 auto; }
+/* Revelação suave ao fazer scroll (só esconde quando o JS está ativo) */
+.rv-on [data-rv] { opacity: 0; transform: translateY(28px); transition: opacity 1s var(--ease-apple), transform 1s var(--ease-apple); transition-delay: var(--rv-delay, 0s); }
+.rv-on [data-rv].in { opacity: 1; transform: none; }
+/* Menu de vidro */
+.glass { background: rgba(255,255,255,.72); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); }
 .letter-paper { background: var(--c-card); color: var(--c-ink); }
 .print-only { display: none; }
 @media print {
