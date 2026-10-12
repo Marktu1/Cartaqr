@@ -259,7 +259,8 @@ export function adminConfirmPayment(order: Row) {
   run(`UPDATE orders SET payment_status = 'confirmed' WHERE id = ?`, order.id);
   if (order.discount_code) run('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?', order.discount_code);
   setStatus(order, 'payment_confirmed', 'admin', 'Pagamento confirmado');
-  void notifyWhatsApp(order.customer_phone, 'payment_confirmed', `Pagamento da encomenda ${order.public_reference} confirmado. Estamos a preparar a tua Carta QR.`);
+  const panel = getCategory(order.occasion).kind === 'evento' ? ` O teu painel de convidados já está ativo: ${config.appUrl}/minha/${order.manage_token}/convidados` : '';
+  void notifyWhatsApp(order.customer_phone, 'payment_confirmed', `Pagamento da encomenda ${order.public_reference} confirmado. Estamos a preparar a tua Carta QR.${panel}`);
 }
 export function adminRejectPayment(order: Row, reason: string) {
   if (!['payment_pending', 'proof_submitted'].includes(order.order_status)) throw new AppError('bad_state', 'Só é possível rejeitar pagamentos pendentes.', 409);
@@ -418,9 +419,47 @@ export function listReplies(letterId: number): Row[] { return all('SELECT * FROM
 
 export type RsvpInput = { name: string; attending: 'yes' | 'no' | 'maybe'; guests: number; message?: string };
 export function rsvpSummary(letterId: number) {
-  const rows = all<{ attending: string; n: number; g: number }>('SELECT attending, COUNT(*) n, COALESCE(SUM(guests),0) g FROM rsvps WHERE letter_id = ? GROUP BY attending', letterId);
+  const rows = all<{ attending: string; n: number; g: number; c: number }>('SELECT attending, COUNT(*) n, COALESCE(SUM(guests),0) g, COALESCE(SUM(CASE WHEN checked_in_at IS NOT NULL THEN guests ELSE 0 END),0) c FROM rsvps WHERE letter_id = ? GROUP BY attending', letterId);
   const pick = (a: string) => rows.find(r => r.attending === a);
-  return { yes: pick('yes')?.n || 0, yesGuests: pick('yes')?.g || 0, no: pick('no')?.n || 0, maybe: pick('maybe')?.n || 0 };
+  return { yes: pick('yes')?.n || 0, yesGuests: pick('yes')?.g || 0, no: pick('no')?.n || 0, maybe: pick('maybe')?.n || 0, maybeGuests: pick('maybe')?.g || 0, checkedInGuests: rows.reduce((t, r) => t + (r.c || 0), 0) };
+}
+
+// ---------------- Painel do evento (para quem pagou o convite) ----------------
+const EVENT_PANEL_STATUSES: OrderStatus[] = ['payment_confirmed', 'in_production', 'published', 'expired'];
+/** O painel de convidados fica ativo assim que o pagamento de um convite de evento é confirmado. */
+export function eventPanelAvailable(order: Row): boolean {
+  return getCategory(order.occasion).kind === 'evento' && order.payment_status === 'confirmed' && EVENT_PANEL_STATUSES.includes(order.order_status);
+}
+function assertEventPanel(order: Row) {
+  if (!eventPanelAvailable(order)) throw new AppError('panel_unavailable', 'O painel de convidados fica disponível depois de o pagamento do convite ser confirmado.', 403);
+}
+export function eventDashboard(order: Row) {
+  assertEventPanel(order);
+  const letter = getLetterByOrder(order.id)!; const plan = getPlan(order.plan_id)!; const extra = parseExtra(letter.extra);
+  const sum = rsvpSummary(letter.id);
+  const published = order.order_status === 'published' && !!letter.is_published && !letter.is_blocked;
+  return {
+    event: { title: letter.title, hosts: letter.sender_name, date: letter.special_date, time: extra.time || '', venue: extra.venue || '', rsvpDeadline: extra.rsvpDeadline || '' },
+    status: order.order_status as OrderStatus, published, inviteUrl: published ? `${config.appUrl}/carta/${letter.secure_token}` : null,
+    rsvp: rsvpStatus(letter, order),
+    summary: { ...sum, responses: sum.yes + sum.no + sum.maybe, capacity: plan.max_guests || 0 },
+    views: viewStats(letter.id).total,
+    guests: listRsvps(letter.id).map(g => ({ id: g.id as number, name: g.guest_name as string, attending: g.attending as 'yes' | 'no' | 'maybe', guests: g.guests as number, message: g.message as string, createdAt: g.created_at as string, checkedInAt: (g.checked_in_at as string) || null })),
+  };
+}
+export type EventDashboard = ReturnType<typeof eventDashboard>;
+export function setRsvpCheckIn(order: Row, rsvpId: number, on: boolean) {
+  assertEventPanel(order);
+  const letter = getLetterByOrder(order.id)!;
+  const r = on ? run("UPDATE rsvps SET checked_in_at = datetime('now') WHERE id = ? AND letter_id = ?", rsvpId, letter.id)
+    : run('UPDATE rsvps SET checked_in_at = NULL WHERE id = ? AND letter_id = ?', rsvpId, letter.id);
+  if (!r.changes) throw new AppError('not_found', 'Convidado não encontrado.', 404);
+}
+export function deleteRsvp(order: Row, rsvpId: number) {
+  assertEventPanel(order);
+  const letter = getLetterByOrder(order.id)!;
+  const r = run('DELETE FROM rsvps WHERE id = ? AND letter_id = ?', rsvpId, letter.id);
+  if (!r.changes) throw new AppError('not_found', 'Convidado não encontrado.', 404);
 }
 export function listRsvps(letterId: number): Row[] { return all('SELECT * FROM rsvps WHERE letter_id = ? ORDER BY id DESC', letterId); }
 
@@ -454,7 +493,7 @@ export function addRsvp(letter: Row, order: Row, input: RsvpInput) {
 export function rsvpCsv(letterId: number): string {
   const esc = (v: unknown) => { let t = String(v ?? ''); if (/^[=+\-@]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
   const rows = listRsvps(letterId).reverse();
-  return '\uFEFF' + ['Nome,Resposta,Pessoas,Mensagem,Data', ...rows.map(r => [r.guest_name, ({ yes: 'Vai', no: 'Não vai', maybe: 'Talvez' } as Record<string, string>)[r.attending], r.attending === 'yes' ? r.guests : 0, r.message, r.created_at].map(esc).join(','))].join('\n');
+  return '\uFEFF' + ['Nome,Resposta,Pessoas,Mensagem,Data,Chegou', ...rows.map(r => [r.guest_name, ({ yes: 'Vai', no: 'Não vai', maybe: 'Talvez' } as Record<string, string>)[r.attending], r.attending === 'yes' ? r.guests : 0, r.message, r.created_at, r.checked_in_at ? 'Sim' : ''].map(esc).join(','))].join('\n');
 }
 
 // ---------------- Aberturas e analytics (sem dados pessoais) ----------------

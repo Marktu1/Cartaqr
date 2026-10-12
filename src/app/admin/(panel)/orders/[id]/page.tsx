@@ -20,7 +20,10 @@ export default async function OrderDetail(props: { params: Promise<{ id: string 
   const pending = ['payment_pending', 'proof_submitted'].includes(st);
   const canPublish = order.payment_status === 'confirmed' && ['payment_confirmed', 'in_production', 'expired', 'published'].includes(st);
   const publicUrl = `${config.appUrl}/carta/${letter.secure_token}`;
-  const wa = adminToCustomerWhatsApp(order.customer_phone, `Olá ${order.customer_name}! Sobre a tua encomenda ${order.public_reference} na Carta QR.`);
+  const panelUrl = `${config.appUrl}/minha/${order.manage_token}${cat.kind === 'evento' ? '/convidados' : ''}`;
+  const wa = adminToCustomerWhatsApp(order.customer_phone, cat.kind === 'evento' && O.eventPanelAvailable(order)
+    ? `Olá ${order.customer_name}! O pagamento do teu convite (${order.public_reference}) está confirmado. Acompanha e controla os teus convidados aqui: ${panelUrl}`
+    : `Olá ${order.customer_name}! Sobre a tua encomenda ${order.public_reference} na Carta QR. Acompanha aqui: ${config.appUrl}/minha/${order.manage_token}`);
   const Hidden = () => <input type="hidden" name="id" value={order.id} />;
   return (
     <div className="space-y-6">
@@ -36,7 +39,14 @@ export default async function OrderDetail(props: { params: Promise<{ id: string 
               {[['Cliente', order.customer_name], ['Email', order.customer_email || '—'], ['Telefone', order.customer_phone || '—'], ['Categoria', `${cat.name} (${cat.kind})`], ['Plano', `${plan.name} · ${plan.duration_days} dias`], ['Valor', formatMoney(order.amount, order.currency) + (order.discount_code ? ` (código ${order.discount_code}, −${formatMoney(order.discount_amount, order.currency)})` : '')],
                 ['Para', letter.recipient_name], ['De', letter.sender_name], ['Data especial', formatDate(letter.special_date) || '—'], ['Estilo', letter.theme], ['Criada', formatDate(order.created_at)], ['Expira', formatDate(letter.expires_at) || '—'], ['PIN', letter.pin_hash ? 'Ativo' : 'Não'], ['IA usada', letter.ai_used ? 'Sim' : 'Não'], ['Aberturas', `${views.total}`], ['Entrega agendada', letter.unlock_at ? O_fmt(letter.unlock_at) : 'Não']].map(([k, v]) => <div key={k}><dt className="text-muted">{k}</dt><dd className="font-semibold">{v}</dd></div>)}
             </dl>
-            {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm mt-4">Contactar cliente no WhatsApp</a>}
+            {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm mt-4">{cat.kind === 'evento' && O.eventPanelAvailable(order) ? 'Enviar painel de convidados ao cliente (WhatsApp)' : 'Contactar cliente no WhatsApp'}</a>}
+            {cat.kind === 'evento' && O.eventPanelAvailable(order) && (
+              <div className="mt-4 rounded-xl bg-mist p-3 text-sm">
+                <p className="font-semibold">Painel de convidados do cliente</p>
+                <p className="mt-1 break-all text-muted">{panelUrl}</p>
+                <a href={panelUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-wine underline">Abrir o painel</a>
+              </div>
+            )}
           </section>
 
           <section className="card p-5" aria-labelledby="comp"><h2 id="comp" className="h-display mb-3 text-xl font-semibold text-wine">Comprovativo de pagamento</h2>

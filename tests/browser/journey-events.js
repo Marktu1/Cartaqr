@@ -65,8 +65,11 @@ const assert = (c, m) => { if (!c) throw new Error('FALHOU: ' + m); console.log(
   await g.locator('#rs-name').fill('João Silva'); await g.getByRole('button', { name: 'Enviar resposta' }).click();
   await g.waitForSelector('text=/Obrigado|confirmad|Recebemos/i'); assert(true, 'RSVP enviado');
   await g.screenshot({ path: 'shot-convite-rsvp-ok.png' });
-  await page.goto(BASE + '/minha/' + token); await page.waitForSelector('text=Confirmações de presença');
-  assert(await page.locator('text=João Silva').count() > 0, 'cliente vê o convidado na lista'); await page.screenshot({ path: 'shot-minha-rsvp.png', fullPage: true });
+  await page.goto(BASE + '/minha/' + token); await page.getByRole('link', { name: 'Abrir o painel de convidados' }).click();
+  await page.waitForSelector('text=Painel do evento');
+  assert(await page.locator('text=João Silva').count() > 0, 'cliente vê o convidado no painel');
+  await page.getByRole('button', { name: 'Chegou' }).first().click(); await page.waitForSelector('text=Desfazer');
+  assert(await page.locator('text=Desfazer').count() > 0, 'check-in à porta funciona'); await page.screenshot({ path: 'shot-minha-rsvp.png', fullPage: true });
   await admin.reload(); assert(await admin.locator('text=João Silva').count() > 0, 'admin vê o convidado');
   assert(gerr.length === 0, 'sem erros JS no convite ' + gerr.join('|'));
 

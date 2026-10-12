@@ -118,6 +118,7 @@ export function getDb(): DB {
   ensure('letters', 'extra', 'TEXT');
   ensure('letter_replies', 'kind', "TEXT NOT NULL DEFAULT 'message'");
   ensure('users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('rsvps', 'checked_in_at', 'TEXT');
   ensure('orders', 'customer_email_idx', 'TEXT');
   ensure('orders', 'customer_phone_idx', 'TEXT');
   g.__cartaDb = db;

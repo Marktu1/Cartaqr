@@ -212,7 +212,7 @@ test('P5. RSVP: só com carta publicada, limites, prazo e deduplicação', () =>
   assert.equal(E.O.addRsvp(letter, pub, { name: 'João Silva', attending: 'yes', guests: 3, message: 'Vamos!' }).updated, false);
   assert.equal(E.O.addRsvp(letter, pub, { name: 'joão silva', attending: 'yes', guests: 2 }).updated, true, 'mesma pessoa atualiza');
   E.O.addRsvp(letter, pub, { name: 'Maria', attending: 'no', guests: 1 }); E.O.addRsvp(letter, pub, { name: 'Zé', attending: 'maybe', guests: 1 });
-  assert.deepEqual(E.O.rsvpSummary(letter.id), { yes: 1, yesGuests: 2, no: 1, maybe: 1 });
+  assert.deepEqual(E.O.rsvpSummary(letter.id), { yes: 1, yesGuests: 2, no: 1, maybe: 1, maybeGuests: 1, checkedInGuests: 0 });
   assert.equal(E.O.addRsvp(letter, pub, { name: 'Grande', attending: 'yes', guests: 99 }).updated, false);
   assert.ok(E.O.rsvpSummary(letter.id).yesGuests <= 12, 'máx. 10 pessoas por resposta');
   // limite do pacote
@@ -362,4 +362,35 @@ test('D3. Códigos e promoções: não acumulam por defeito; oferta da newslette
   E.DB.run(`INSERT OR REPLACE INTO settings(key, value) VALUES('newsletter_code','MENOS1000')`); assert.deepEqual(O.newsletterOffer(), { code: 'MENOS1000', label: '1000 Kz de desconto' });
   E.DB.run('UPDATE discount_codes SET is_active = 0 WHERE code = ?', 'MENOS1000'); assert.equal(O.newsletterOffer(), null, 'código desativado não é oferecido');
   E.DB.run('UPDATE discount_codes SET is_active = 1 WHERE code = ?', 'MENOS1000');
+});
+
+test('P9. Painel de convidados: ativo após confirmação do pagamento, check-in e remoção só no próprio evento', () => {
+  let { order } = E.O.createOrder(evOrder() as any);
+  E.O.updateLetter(order, { mainMessage: 'Estás convidado para o nosso grande dia.' });
+  assert.equal(E.O.eventPanelAvailable(order), false);
+  assert.throws(() => E.O.eventDashboard(order), /depois de o pagamento/);
+  E.O.submitOrder(order); order = E.O.getOrderById(order.id)!;
+  E.O.submitProof(order, PDF, ''); order = E.O.getOrderById(order.id)!;
+  assert.equal(E.O.eventPanelAvailable(order), false, 'comprovativo enviado ainda não chega');
+  E.O.adminConfirmPayment(order); order = E.O.getOrderById(order.id)!;
+  assert.equal(E.O.eventPanelAvailable(order), true, 'ativo logo após confirmar o pagamento');
+  let d = E.O.eventDashboard(order);
+  assert.equal(d.published, false); assert.equal(d.inviteUrl, null); assert.equal(d.guests.length, 0);
+  E.O.adminPublish(order); order = E.O.getOrderById(order.id)!;
+  const letter = E.O.getLetterByOrder(order.id)!;
+  E.O.addRsvp(letter, order, { name: 'João Silva', attending: 'yes', guests: 3, message: '' });
+  E.O.addRsvp(letter, order, { name: 'Maria', attending: 'maybe', guests: 1, message: '' });
+  d = E.O.eventDashboard(order);
+  assert.ok(d.published && d.inviteUrl); assert.equal(d.summary.yesGuests, 3); assert.equal(d.summary.checkedInGuests, 0);
+  const joao = d.guests.find(g => g.name === 'João Silva')!;
+  E.O.setRsvpCheckIn(order, joao.id, true);
+  d = E.O.eventDashboard(order); assert.equal(d.summary.checkedInGuests, 3); assert.ok(d.guests.find(g => g.id === joao.id)!.checkedInAt);
+  E.O.setRsvpCheckIn(order, joao.id, false); assert.equal(E.O.eventDashboard(order).summary.checkedInGuests, 0);
+  // outro cliente não mexe nos convidados deste evento
+  let { order: other } = E.O.createOrder(evOrder() as any); E.O.updateLetter(other, { mainMessage: 'Outro evento.' }); E.O.submitOrder(other); other = E.O.getOrderById(other.id)!;
+  E.O.submitProof(other, PDF, ''); other = E.O.getOrderById(other.id)!; E.O.adminConfirmPayment(other); other = E.O.getOrderById(other.id)!;
+  assert.throws(() => E.O.setRsvpCheckIn(other, joao.id, true), /não encontrado/);
+  assert.throws(() => E.O.deleteRsvp(other, joao.id), /não encontrado/);
+  E.O.deleteRsvp(order, joao.id); assert.equal(E.O.eventDashboard(order).guests.length, 1);
+  assert.match(E.O.rsvpCsv(letter.id), /Chegou/);
 });

@@ -142,7 +142,12 @@ test('evento: só com pacote de Eventos; RSVP público; cliente vê confirmaçõ
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: 'João Silva', attending: 'yes', guests: 2, message: 'Lá estaremos' })).status, 200);
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: '', attending: 'yes', guests: 1 })).status, 422);
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: 'X', attending: 'talvez-sim', guests: 1 })).status, 422);
-  const minha = await (await fetch(URL0 + `/minha/${t}`)).text(); assert.ok(minha.includes('João Silva') && minha.includes('Confirmações de presença') && minha.includes('Convite QR'));
+  const minha = await (await fetch(URL0 + `/minha/${t}`)).text(); assert.ok(minha.includes('Abrir o painel de convidados') && minha.includes('Convite QR'));
+  const painel = await (await fetch(URL0 + `/minha/${t}/convidados`)).text(); assert.ok(painel.includes('João Silva') && painel.includes('Painel do evento'));
+  const dash = await j(`/api/orders/${t}/rsvps?format=json`); assert.equal(dash.status, 200); assert.equal(dash.body.dashboard.summary.yesGuests, 2);
+  const gid = dash.body.dashboard.guests[0].id;
+  assert.equal((await post(`/api/orders/${t}/rsvps/${gid}`, { checkedIn: true }, 'PATCH')).body.dashboard.summary.checkedInGuests, 2);
+  assert.equal((await post(`/api/orders/token-errado-token-errado-1234/rsvps/${gid}`, { checkedIn: true }, 'PATCH')).status, 404);
   const csv = await fetch(URL0 + `/api/orders/${t}/rsvps`); assert.equal(csv.status, 200); assert.match(await csv.text(), /João Silva/);
   assert.equal((await fetch(URL0 + `/api/orders/token-errado-token-errado-1234/rsvps`)).status, 404);
 });

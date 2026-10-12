@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getOrderByToken, getLetterByOrder, getPlan, expireDue, rsvpSummary, listRsvps, viewStats } from '@/lib/orders';
+import { getOrderByToken, getLetterByOrder, getPlan, expireDue, rsvpSummary, viewStats, eventPanelAvailable } from '@/lib/orders';
 import { all } from '@/lib/db';
 import { config } from '@/lib/config';
 import { formatDate, formatMoney, formatLuanda, STATUS_LABEL } from '@/lib/format';
@@ -22,7 +22,7 @@ export default async function MinhaPage(props: { params: Promise<{ token: string
   const letter = getLetterByOrder(order.id)!; const plan = getPlan(order.plan_id)!; const s = getSettings();
   const replies = all('SELECT * FROM letter_replies WHERE letter_id = ? ORDER BY id DESC', letter.id);
   const cat = getCategory(order.occasion); const isEvent = cat.kind === 'evento';
-  const sum = rsvpSummary(letter.id); const guestsList = isEvent ? listRsvps(letter.id) : []; const views = viewStats(letter.id);
+  const sum = rsvpSummary(letter.id); const views = viewStats(letter.id); const panel = eventPanelAvailable(order);
   const status = order.order_status as string;
   const idx = status === 'in_production' ? 2 : FLOW.indexOf(status);
   const link = `${config.appUrl}/carta/${letter.secure_token}`;
@@ -65,11 +65,14 @@ export default async function MinhaPage(props: { params: Promise<{ token: string
 
       {status === 'published' && <div className="card p-5"><h2 className="h-display text-xl font-semibold text-wine">Aberturas</h2><p className="mt-1 text-muted">{views.total === 0 ? 'Ainda ninguém abriu o link.' : `${views.total} abertura(s)${views.last ? ` · última em ${formatDate(views.last)}` : ''}.`}</p></div>}
 
-      {isEvent && status === 'published' && (
-        <div className="card p-5" id="rsvp"><h2 className="h-display text-xl font-semibold text-wine">Confirmações de presença</h2>
-          <p className="mt-2 text-muted"><strong data-testid="rsvp-yes">{sum.yesGuests}</strong> pessoa(s) confirmada(s) ({sum.yes} resposta(s) “vou”) · {sum.maybe} talvez · {sum.no} não vão · limite do pacote: {plan.max_guests}</p>
-          {guestsList.length > 0 && <ul className="mt-3 divide-y divide-wine/10 text-sm">{guestsList.map(g => <li key={g.id} className="flex flex-wrap justify-between gap-2 py-2"><span><strong>{g.guest_name}</strong>{g.message ? ` · “${g.message}”` : ''}</span><span className="text-muted">{({ yes: `Vai (${g.guests})`, no: 'Não vai', maybe: 'Talvez' } as Record<string, string>)[g.attending]}</span></li>)}</ul>}
-          <a className="btn btn-secondary mt-4" href={`/api/orders/${params.token}/rsvps`}>Descarregar lista (CSV)</a></div>
+      {isEvent && panel && (
+        <div className="overflow-hidden rounded-[22px] bg-night p-6 text-white" id="rsvp">
+          <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-gold">Painel do evento</p>
+          <h2 className="mt-1 text-[24px] font-semibold leading-tight">Controla os teus convidados</h2>
+          <p className="mt-2 text-[15px] text-white/70">Vê quem confirmou, procura nomes e marca quem chegou à porta do evento.</p>
+          <p className="mt-4 text-[15px]"><strong data-testid="rsvp-yes" className="text-[28px] font-semibold">{sum.yesGuests}</strong> <span className="text-white/70">pessoa(s) confirmada(s) · {sum.maybe} talvez · {sum.no} não vão{plan.max_guests ? ` · ${plan.max_guests} lugares` : ''}</span></p>
+          <Link href={`/minha/${params.token}/convidados`} className="btn btn-light mt-5 w-full sm:w-auto">Abrir o painel de convidados</Link>
+        </div>
       )}
 
       {replies.length > 0 && <div className="card p-5"><h2 className="h-display mb-3 text-xl font-semibold text-wine">{cat.proposal ? 'A resposta' : 'Respostas recebidas'}</h2><ul className="space-y-3">{replies.map(r => <li key={r.id} className={`rounded-xl p-3 ${r.kind === 'answer' ? 'border-2 border-gold bg-gold/10 font-semibold' : 'bg-rose-soft/40'}`}><p className="whitespace-pre-line">{r.message}</p><p className="mt-1 text-xs text-muted">{r.author || 'Anónimo'} · {formatDate(r.created_at)}</p></li>)}</ul></div>}
