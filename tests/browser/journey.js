@@ -16,14 +16,14 @@ const assert = (c, m) => { if (!c) { throw new Error('FALHOU: ' + m); } console.
 
   step('1. Landing no telemóvel');
   await page.goto(BASE); await page.screenshot({ path: 'shot-landing.png' });
-  assert(await page.locator('h1').innerText() === 'Cria uma surpresa que vai ser lembrada para sempre.', 'título do hero');
+  assert(await page.locator('h1').innerText() === 'Uma carta que fica para sempre.', 'título do hero');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(overflow <= 1, 'sem scroll horizontal (overflow=' + overflow + ')');
   await page.screenshot({ path: 'shot-landing-full.png', fullPage: true });
 
   step('2. Ver exemplo e abrir a carta');
   await page.getByRole('link', { name: 'Ver exemplos' }).click(); await page.locator('#exemplos a').first().click();
-  await page.waitForURL(/exemplos\//); await page.getByRole('button', { name: /^Abrir (a minha carta|o meu presente|o convite)/ }).click();
+  await page.waitForURL(/exemplos\//); await page.getByRole('button', { name: /^Toca no selo/ }).click();
   await page.waitForSelector('main section h2'); await page.screenshot({ path: 'shot-demo.png' });
   assert(await page.locator('text=Exemplo fictício').count() > 0, 'aviso de exemplo fictício');
 
@@ -118,7 +118,7 @@ const assert = (c, m) => { if (!c) { throw new Error('FALHOU: ' + m); } console.
   await rp.goto(link); await rp.waitForSelector('text=Esta carta está protegida');
   await rp.getByLabel('PIN').fill('0000'); await rp.getByRole('button', { name: 'Abrir carta' }).click(); await rp.waitForSelector('text=PIN incorreto'); assert(true, 'PIN incorreto');
   await rp.getByLabel('PIN').fill('4821'); await rp.getByRole('button', { name: 'Abrir carta' }).click();
-  await rp.getByRole('button', { name: /^Abrir (a minha carta|o meu presente|o convite)/ }).click(); await rp.waitForSelector('text=Editado por mim.');
+  await rp.getByRole('button', { name: /^Toca no selo/ }).click(); await rp.waitForSelector('text=Editado por mim.');
   await rp.waitForTimeout(800); await rp.screenshot({ path: 'shot-carta.png', fullPage: true });
   const imgs = await rp.evaluate(() => Array.from(document.images).map(i => ({ ok: i.complete && i.naturalWidth > 0, src: i.src.slice(0, 40) })));
   assert(imgs.length >= 3 && imgs.every(i => i.ok), 'imagens da carta carregam (' + imgs.length + ')');

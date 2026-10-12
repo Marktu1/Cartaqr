@@ -8,6 +8,7 @@ import { LockedCountdown } from '@/components/LockedCountdown';
 import { getCategory } from '@/lib/categories';
 import { formatLuanda } from '@/lib/format';
 import { PinGate } from '@/components/PinGate';
+import { pinCookieName } from '@/lib/cookies';
 
 export const dynamic = 'force-dynamic';
 // Páginas privadas: sem título/descrição com dados pessoais e fora dos motores de pesquisa.
@@ -35,7 +36,7 @@ export default async function CartaPage(props: { params: Promise<{ token: string
 
   if (r.state === 'locked') return <LockedCountdown unlockAt={r.unlockAt} label={getCategory(r.order.occasion).kind === 'evento' ? 'Convite' : 'Carta QR'} opensAt={formatLuanda(r.letter.unlock_at)} />;
   const { letter, order } = r;
-  if (letter.pin_hash && !pinCookieValid(letter.id, (await cookies()).get(`pin_${letter.id}`)?.value)) return <PinGate token={params.token} />;
+  if (letter.pin_hash && !pinCookieValid(letter, (await cookies()).get(pinCookieName(letter.id))?.value)) return <PinGate token={params.token} />;
   trackLetterView(letter.id);
   return <LetterView data={buildLetterView(order, letter, { token: params.token })} />;
 }

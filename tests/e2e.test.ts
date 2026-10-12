@@ -6,11 +6,15 @@ import { PNG, JPG, MP4, EXE, PDF, SCRIPT } from './helpers';
 
 const URL0 = process.env.E2E_URL || 'http://localhost:3111';
 let O: typeof import('../src/lib/orders');
+let S: typeof import('../src/lib/security');
 let plans: any[];
-before(async () => { O = await import('../src/lib/orders'); plans = O.listPlans(); });
+before(async () => { O = await import('../src/lib/orders'); S = await import('../src/lib/security'); plans = O.listPlans(); });
+// Formulários públicos exigem um token anti-robô: nos testes cria-se um válido (assinado com o mesmo segredo e já com 5 s).
+const BOT_GUARDED = /\/api\/(orders|contact|newsletter)$|\/(rsvp|reply)$/;
+const withToken = (path: string, data: unknown) => (BOT_GUARDED.test(path) && data && typeof data === 'object' && !('_t' in (data as object)) ? { ...(data as object), _t: S.sign(`form:${Date.now() - 5000}:${Math.random().toString(36).slice(2)}`) } : data);
 
 const j = async (path: string, init?: RequestInit) => { const r = await fetch(URL0 + path, init); let body: any = null; try { body = await r.json(); } catch { /* */ } return { status: r.status, body, headers: r.headers }; };
-const post = (path: string, data: unknown, method = 'POST') => j(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+const post = (path: string, data: unknown, method = 'POST') => j(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withToken(path, data)) });
 const upload = (path: string, buf: Buffer, kind: string, name = 'f.bin', extra: Record<string, string> = {}) => { const f = new FormData(); f.append('file', new Blob([new Uint8Array(buf)]), name); if (kind) f.append('kind', kind); for (const [k, v] of Object.entries(extra)) f.append(k, v); return j(path, { method: 'POST', body: f }); };
 const order = (slug: string, over = {}) => post('/api/orders', { occasion: 'aniversario', planId: plans.find(p => p.slug === slug).id, recipientName: 'Ana Exemplo', senderName: 'Bruno Exemplo', title: 'Para a minha pessoa favorita', contact: 'bruno@exemplo.com', language: 'pt', theme: 'romantico', ...over });
 
@@ -19,7 +23,7 @@ test('páginas públicas abrem (landing, preços, contacto, legais, exemplos)', 
     const r = await fetch(URL0 + p); assert.equal(r.status, 200, p);
   }
   const home = await (await fetch(URL0 + '/')).text();
-  for (const s of ['Cria uma surpresa que vai ser lembrada para sempre.', 'Criar a minha Carta QR', 'Ver exemplos', 'A tua memória merece mais do que uma mensagem comum.', 'og:image']) assert.ok(home.includes(s), s);
+  for (const s of ['Uma carta que fica para sempre.', 'Criar a minha carta', 'Ver exemplos', 'A tua memória merece mais do que uma mensagem comum.', 'og:image']) assert.ok(home.includes(s), s);
   assert.ok(home.includes('Essencial') && home.includes('Romântico') && home.includes('Premium') && /4\s500/.test(home) && home.includes('Eventos'));
 });
 
@@ -74,7 +78,7 @@ test('fluxo completo via API: criar → editar → IA → media → comprovativo
   assert.ok(gate.includes('Esta carta está protegida')); assert.ok(!gate.includes('um dia de sol')); assert.ok(gate.includes('noindex'));
   const bad = await post(`/api/carta/${letter.secure_token}/pin`, { pin: '0000' }); assert.equal(bad.status, 401); assert.match(bad.body.error, /PIN incorreto/);
   const good = await fetch(URL0 + `/api/carta/${letter.secure_token}/pin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '4821' }) });
-  assert.equal(good.status, 200); const cookie = (good.headers.get('set-cookie') || '').split(';')[0]; assert.match(cookie, /^pin_\d+=/);
+  assert.equal(good.status, 200); const cookie = (good.headers.get('set-cookie') || '').split(';')[0]; assert.match(cookie, /^(__Host-)?cq_pin_\d+=/);
   const open = await (await fetch(URL0 + url, { headers: { cookie } })).text();
   assert.ok(open.includes('Para a minha pessoa favorita') && open.includes('Abrir o meu presente'));
   assert.ok(!open.includes('bruno@exemplo.com') && !open.includes('+244') && !open.includes('CQ-'), 'não expõe dados do comprador');
@@ -82,7 +86,7 @@ test('fluxo completo via API: criar → editar → IA → media → comprovativo
   assert.ok(open.includes('noindex'));
   // resposta do destinatário
   assert.equal((await post(`/api/carta/${letter.secure_token}/reply`, { message: 'Adorei!' })).status, 401);
-  const rep = await fetch(URL0 + `/api/carta/${letter.secure_token}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify({ author: 'Ana', message: 'Adorei!' }) }); assert.equal(rep.status, 200);
+  const rep = await fetch(URL0 + `/api/carta/${letter.secure_token}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify(withToken('/reply', { author: 'Ana', message: 'Adorei!' })) }); assert.equal(rep.status, 200);
   // QR PNG + SVG e página do cliente
   const png = await fetch(URL0 + `/api/orders/${t}/qr?format=png&download=1`); assert.equal(png.status, 200); assert.equal(png.headers.get('content-type'), 'image/png'); assert.match(png.headers.get('content-disposition') || '', /attachment/);
   const buf = Buffer.from(await png.arrayBuffer()); assert.equal(buf.subarray(1, 4).toString(), 'PNG');
@@ -221,5 +225,17 @@ test('cabeçalhos de segurança e sem fuga de detalhes internos', async () => {
   (await import('../src/lib/db')).run('DELETE FROM rate_limits'); // os testes anteriores esgotam os limites por IP
   const r = await fetch(URL0 + '/'); assert.equal(r.headers.get('x-content-type-options'), 'nosniff'); assert.equal(r.headers.get('x-frame-options'), 'DENY'); assert.ok(!r.headers.get('x-powered-by'));
   const e = await j('/api/orders/token-invalido-token-invalido'); assert.equal(e.status, 404); assert.ok(!JSON.stringify(e.body).match(/stack|at .*\(|sqlite|node_modules/i));
-  const bad = await fetch(URL0 + '/api/orders', { method: 'POST', body: '{"rompido"' }); assert.equal(bad.status, 422);
+  const bad = await fetch(URL0 + '/api/orders', { method: 'POST', body: '{"rompido"' }); assert.ok([400, 422].includes(bad.status));
+  // cabeçalhos adicionais e CSP com nonce
+  assert.match(r.headers.get('content-security-policy') || '', /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+  assert.match(r.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);
+  assert.ok(r.headers.get('permissions-policy')); assert.equal(r.headers.get('cross-origin-opener-policy'), 'same-origin');
+  // CSRF: pedidos de outros sites são recusados
+  const cross = await fetch(URL0 + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://site-mau.com' }, body: '{}' }); assert.equal(cross.status, 403);
+  // páginas privadas não ficam em cache
+  assert.match((await fetch(URL0 + '/admin/login')).headers.get('cache-control') || '', /no-store/);
+  // pedidos gigantes recusados
+  const huge = await fetch(URL0 + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: 'a'.repeat(200_000) }) }); assert.equal(huge.status, 413);
+  // a API de IA não revela o fornecedor
+  assert.deepEqual(Object.keys((await j('/api/ai')).body).sort(), ['available', 'ok']);
 });

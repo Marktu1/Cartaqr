@@ -7,12 +7,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const params = await ctx.params;
   const id = Number(params.id); const u = new URL(req.url);
   if (!Number.isInteger(id) || !verifyMediaSig(id, u.searchParams.get('exp'), u.searchParams.get('sig'))) return new NextResponse('Link inválido ou expirado.', { status: 403 });
-  const m = get('SELECT storage_path, mime_type FROM media_assets WHERE id = ?', id);
-  const buf = m && readFile(m.storage_path);
-  if (!m || !buf) return new NextResponse('Ficheiro não encontrado.', { status: 404 });
+  const m = get('SELECT m.storage_path, m.mime_type, l.is_blocked FROM media_assets m JOIN letters l ON l.id = m.letter_id WHERE m.id = ?', id);
+  const buf = m && !m.is_blocked ? readFile(m.storage_path) : null;
+  if (!m || !buf || m.is_blocked) return new NextResponse('Ficheiro não encontrado.', { status: 404 });
   // suporte a Range (necessário para vídeo/áudio em telemóveis)
   const range = req.headers.get('range');
-  const base = { 'Content-Type': m.mime_type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
+  const base = { 'Content-Type': m.mime_type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "default-src 'none'; sandbox", 'Cross-Origin-Resource-Policy': 'same-origin' };
   if (range) {
     const mm = /bytes=(\d*)-(\d*)/.exec(range);
     if (mm) {

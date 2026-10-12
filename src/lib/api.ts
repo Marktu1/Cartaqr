@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { AppError, getOrderByToken, getLetterByOrder, getMemories, getMedia, getPlan, uploadLimits, parseExtra } from './orders';
-import { rateLimit, clientIp, signedMediaUrl } from './security';
+import { rateLimit, clientIp, signedMediaUrl, BodyTooLarge, checkBot, consumeFormToken } from './security';
 import { getPublicSettings } from './settings';
 import { Row } from './db';
 import { utcToLuanda } from './format';
@@ -11,6 +11,7 @@ export function fail(error: string, status = 400, code = 'error') { return NextR
 /** Converte qualquer erro numa resposta segura (nunca expõe stack traces nem detalhes internos). */
 export function handle(e: unknown) {
   if (e instanceof AppError) return fail(e.message, e.status, e.code);
+  if (e instanceof BodyTooLarge) return fail('O pedido é demasiado grande.', 413, 'too_large');
   console.error('[api]', e instanceof Error ? e.message : e);
   return fail('Ocorreu um erro inesperado. Tenta novamente daqui a pouco.', 500, 'internal');
 }
@@ -20,7 +21,23 @@ export function limit(req: Request, bucket: string, max: number, windowMs: numbe
   return r.ok ? null : fail(`Muitos pedidos. Tenta novamente em ${r.retryAfter} segundos.`, 429, 'rate_limited');
 }
 
+/** Bloqueia robôs nos formulários públicos (token de formulário + campo-armadilha). */
+export function botBlock(body: unknown): NextResponse | null {
+  const b = (body && typeof body === 'object' ? body : {}) as { _t?: unknown; website?: unknown };
+  const r = checkBot(b);
+  if (r.ok && consumeFormToken(b._t)) return null;
+  if (r.ok) return fail('Este formulário já foi enviado. Tenta de novo.', 400, 'bot_check');
+  return fail(r.reason === 'too_fast' ? 'Foi rápido demais. Espera um segundo e tenta de novo.' : 'Não foi possível verificar o pedido. Recarrega a página e tenta de novo.', 400, 'bot_check');
+}
+
+/** Converte o id de um URL num inteiro positivo, ou lança 404. */
+export function intParam(v: string): number {
+  if (!/^\d{1,9}$/.test(v)) throw new AppError('not_found', 'Não encontrado.', 404);
+  return Number(v);
+}
+
 export function orderFromToken(token: string): Row {
+  if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) throw new AppError('not_found', 'Encomenda não encontrada. Verifica o link.', 404);
   const o = getOrderByToken(token);
   if (!o) throw new AppError('not_found', 'Encomenda não encontrada. Verifica o link.', 404);
   return o;

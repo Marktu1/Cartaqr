@@ -7,6 +7,7 @@ import { ReplyForm } from './ReplyForm';
 import { RsvpForm } from './RsvpForm';
 import { Envelope, sealInitials } from './letter/Envelope';
 import { ScratchDate } from './letter/ScratchDate';
+import { useFormGuard } from './useFormGuard';
 
 export type LetterViewData = {
   title: string; recipientName: string; senderName: string; intro: string; mainMessage: string; closingMessage: string; specialDate: string;
@@ -49,13 +50,14 @@ function Countdown({ target, label, past }: { target: string; label: string; pas
 }
 
 function Proposal({ p, token, demo }: { p: NonNullable<ReturnType<typeof derive>['proposal']>; token?: string; demo?: boolean }) {
+  const { guard } = useFormGuard();
   const [answered, setAnswered] = useState<'yes' | 'no' | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   async function answer(choice: 'yes' | 'no') {
     setError('');
     if (demo || !token) { setAnswered(choice); return; }
     setBusy(true);
     try {
-      const r = await fetch(`/api/carta/${token}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice }) });
+      const r = await fetch(`/api/carta/${token}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice, ...(await guard()) }) });
       const j = await r.json().catch(() => null);
       if (j?.ok) setAnswered(choice); else setError(j?.error || 'Não foi possível enviar a resposta. Tenta novamente.');
     } catch { setError('Sem ligação à internet. Tenta novamente.'); }

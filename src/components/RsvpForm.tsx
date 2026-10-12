@@ -1,7 +1,9 @@
 'use client';
 import { useState } from 'react';
+import { useFormGuard } from './useFormGuard';
 
 export function RsvpForm({ token, open, reason, deadline, demo }: { token: string; open: boolean; reason?: string; deadline?: string; demo?: boolean }) {
+  const { guard, trap } = useFormGuard();
   const [name, setName] = useState(''); const [attending, setAttending] = useState<'yes' | 'no' | 'maybe'>('yes'); const [guests, setGuests] = useState(1); const [message, setMessage] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle'); const [error, setError] = useState(''); const [updated, setUpdated] = useState(false);
   if (!open) return <section className="mt-12 rounded-xl2 bg-[var(--c-card)] p-5 text-center shadow-soft" aria-label="Confirmação de presença"><h2 className="h-display text-xl text-[var(--c-accent)]">Confirmação de presença</h2><p className="mt-2 opacity-80">{reason || 'As confirmações estão encerradas.'}</p></section>;
@@ -11,7 +13,7 @@ export function RsvpForm({ token, open, reason, deadline, demo }: { token: strin
     if (demo) { setState('sent'); return; }
     setState('sending');
     try {
-      const r = await fetch(`/api/carta/${token}/rsvp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, attending, guests, message }) });
+      const r = await fetch(`/api/carta/${token}/rsvp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, attending, guests, message, ...(await guard()) }) });
       const j = await r.json().catch(() => null);
       if (j?.ok) { setUpdated(!!j.updated); setState('sent'); } else { setError(j?.error || 'Não foi possível enviar. Tenta novamente.'); setState('idle'); }
     } catch { setError('Sem ligação à internet. Tenta novamente.'); setState('idle'); }
@@ -19,7 +21,8 @@ export function RsvpForm({ token, open, reason, deadline, demo }: { token: strin
   if (state === 'sent') return <section role="status" className="mt-12 rounded-xl2 bg-[var(--c-soft)] p-6 text-center"><p className="h-display text-xl text-[var(--c-accent)]">{attending === 'no' ? 'Obrigado por avisares.' : attending === 'maybe' ? 'Registámos o teu “talvez”.' : 'Presença confirmada!'}</p><p className="mt-1 opacity-80">{demo ? 'Isto é um exemplo: nada foi enviado.' : updated ? 'Atualizámos a tua resposta.' : 'Os anfitriões já receberam a tua resposta.'}</p></section>;
   const opts: ['yes' | 'no' | 'maybe', string][] = [['yes', 'Vou'], ['maybe', 'Talvez'], ['no', 'Não vou']];
   return (
-    <form onSubmit={send} className="mt-12 rounded-xl2 bg-[var(--c-card)] p-5 shadow-soft" aria-labelledby="rsvp-t">
+    <form onSubmit={send} className="relative mt-12 rounded-xl2 bg-[var(--c-card)] p-5 shadow-soft" aria-labelledby="rsvp-t">
+      {trap}
       <h2 id="rsvp-t" className="h-display text-xl text-[var(--c-accent)]">Confirma a tua presença</h2>
       {deadline && <p className="text-sm opacity-70">Até {new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(deadline + 'T12:00:00Z'))}</p>}
       <label className="label mt-3" htmlFor="rs-name">O teu nome</label><input id="rs-name" className="field" value={name} onChange={e => setName(e.target.value)} maxLength={80} autoComplete="name" required />

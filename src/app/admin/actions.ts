@@ -6,12 +6,14 @@ import { login, logout, requireAdmin, logAdmin } from '@/lib/auth';
 import * as O from '@/lib/orders';
 import { run } from '@/lib/db';
 import { setSetting } from '@/lib/settings';
-import { cleanText } from '@/lib/security';
+import { cleanText, ipFromHeaders, checkBot, consumeFormToken } from '@/lib/security';
+import { THEMES } from '@/lib/validation';
 import { luandaToUtc } from '@/lib/format';
 import { AppError, normalizeCode, createDiscountCode, toggleDiscountCode, deleteDiscountCode } from '@/lib/orders';
 
 export async function loginAction(_prev: { error?: string; email?: string } | undefined, form: FormData): Promise<{ error?: string; email?: string }> {
-  const ip = ((await headers()).get('x-forwarded-for') || 'unknown').split(',')[0].trim();
+  const ip = ipFromHeaders(await headers());
+  if (!checkBot({ _t: form.get('_t'), website: form.get('website') }).ok || !consumeFormToken(form.get('_t'))) return { error: 'Não foi possível verificar o pedido. Espera um segundo e tenta de novo.', email: String(form.get('email') || '') };
   const r = await login(String(form.get('email') || ''), String(form.get('password') || ''), ip);
   if (!r.ok) return { error: r.error, email: String(form.get('email') || '') };
   redirect('/admin');
@@ -21,7 +23,7 @@ export async function logoutAction() { await logout(); redirect('/admin/login');
 async function ctx(form: FormData) {
   const adminId = await requireAdmin();
   const id = Number(form.get('id'));
-  const order = O.getOrderById(id);
+  const order = Number.isInteger(id) && id > 0 ? O.getOrderById(id) : undefined;
   if (!order) throw new Error('Encomenda não encontrada');
   return { adminId, order, id };
 }
@@ -77,7 +79,8 @@ export async function saveSettingsAction(form: FormData) {
   revalidatePath('/', 'layout'); redirect('/admin/settings?msg=' + encodeURIComponent('Configurações guardadas.'));
 }
 export async function savePlanAction(form: FormData) {
-  const adminId = await requireAdmin(); const id = Number(form.get('id')); const n = (k: string) => Math.max(0, Math.round(Number(form.get(k)) || 0));
+  const adminId = await requireAdmin(); const id = Number(form.get('id'));
+  if (!Number.isInteger(id) || id <= 0) redirect('/admin/settings'); const n = (k: string) => Math.max(0, Math.round(Number(form.get(k)) || 0));
   const features = String(form.get('features') || '').split('\n').map(s => cleanText(s, 120)).filter(Boolean);
   const price = n('price'); const promoRaw = String(form.get('promo_price') ?? '').trim(); const promoEnds = luandaToUtc(String(form.get('promo_ends_at') || ''));
   let promoPrice: number | null = null; let promoEndsAt: string | null = null;
@@ -94,7 +97,8 @@ export async function savePlanAction(form: FormData) {
 }
 export async function saveOccasionAction(form: FormData) {
   const adminId = await requireAdmin(); const id = Number(form.get('id'));
-  run('UPDATE occasions SET name = ?, description = ?, default_theme = ?, is_active = ? WHERE id = ?', cleanText(String(form.get('name')), 60), cleanText(String(form.get('description')), 120), cleanText(String(form.get('default_theme')), 20) || 'romantico', form.get('is_active') ? 1 : 0, id);
+  if (!Number.isInteger(id) || id <= 0) redirect('/admin/settings');
+  run('UPDATE occasions SET name = ?, description = ?, default_theme = ?, is_active = ? WHERE id = ?', cleanText(String(form.get('name')), 60), cleanText(String(form.get('description')), 120), ((THEMES as readonly string[]).includes(String(form.get('default_theme'))) ? String(form.get('default_theme')) : 'romantico'), form.get('is_active') ? 1 : 0, id);
   logAdmin(adminId, 'save_occasion', String(id)); revalidatePath('/', 'layout'); redirect('/admin/settings?msg=' + encodeURIComponent('Ocasião guardada.'));
 }
 

@@ -81,8 +81,10 @@ test('11. PIN: hash, verificação e cookie assinado', async () => {
   E.O.updateLetter(order, { pin: '4821' }); const l = E.O.getLetterByOrder(order.id)!;
   assert.notEqual(l.pin_hash, '4821'); assert.match(l.pin_hash, /^\$2[aby]\$/);
   assert.ok(E.O.verifyPin(l, '4821')); assert.ok(!E.O.verifyPin(l, '1234')); assert.ok(!E.O.verifyPin(l, ''));
-  const ck = E.O.pinCookieValue(l.id); assert.ok(E.O.pinCookieValid(l.id, ck));
-  assert.ok(!E.O.pinCookieValid(l.id + 1, ck)); assert.ok(!E.O.pinCookieValid(l.id, ck.slice(0, -2) + 'xx')); assert.ok(!E.O.pinCookieValid(l.id, undefined));
+  const ck = E.O.pinCookieValue(l); assert.ok(E.O.pinCookieValid(l, ck));
+  assert.ok(!E.O.pinCookieValid({ ...l, id: l.id + 1 }, ck)); assert.ok(!E.O.pinCookieValid(l, ck.slice(0, -2) + 'xx')); assert.ok(!E.O.pinCookieValid(l, undefined));
+  // mudar o PIN invalida os acessos antigos
+  E.O.updateLetter(order, { pin: '9999' }); assert.ok(!E.O.pinCookieValid(E.O.getLetterByOrder(order.id)!, ck));
   const { letterPatchSchema } = await import('../src/lib/validation');
   assert.equal(letterPatchSchema.safeParse({ pin: '12' }).success, false); assert.equal(letterPatchSchema.safeParse({ pin: 'abcd' }).success, false); assert.equal(letterPatchSchema.safeParse({ pin: '123456' }).success, true);
 });

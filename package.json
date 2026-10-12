@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "seed": "node --import tsx scripts/seed.ts",
-    "test": "node --import tsx --test tests/logic.test.ts",
-    "test:e2e": "node --import tsx --test tests/e2e.test.ts"
+    "test": "node --import tsx --test tests/logic.test.ts tests/security.test.ts",
+    "test:e2e": "node --import tsx --test tests/e2e.test.ts",
+    "audit:security": "node scripts/audit.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
@@ -19,7 +20,7 @@
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.6.1",
     "bcryptjs": "^3.0.3",
-    "next": "^15.5.25",
+    "next": "^16.4.0",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.28",
     "qrcode": "^1.5.4",

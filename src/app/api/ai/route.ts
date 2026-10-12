@@ -1,15 +1,16 @@
 import { aiRequestSchema, firstError } from '@/lib/validation';
 import { runAi, aiStatus, AiUnavailableError } from '@/lib/ai';
 import { ok, fail, handle, limit, orderFromToken } from '@/lib/api';
+import { readJson } from '@/lib/security';
 
-export async function GET() { return ok(aiStatus()); }
+export async function GET() { return ok({ available: aiStatus().available }); } // sem revelar o fornecedor
 
 export async function POST(req: Request) {
   try {
     const rl = limit(req, 'ai', 15, 10 * 60_000); if (rl) return rl;
     const url = new URL(req.url);
     orderFromToken(url.searchParams.get('t') || ''); // só quem tem uma encomenda pode usar a IA
-    const parsed = aiRequestSchema.safeParse(await req.json().catch(() => null));
+    const parsed = aiRequestSchema.safeParse(await readJson(req));
     if (!parsed.success) return fail(firstError(parsed.error), 422, 'validation');
     try {
       const r = await runAi(parsed.data);

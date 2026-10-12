@@ -95,10 +95,13 @@ const g = globalThis as unknown as { __cartaDb?: DB };
 
 export function getDb(): DB {
   if (g.__cartaDb) return g.__cartaDb;
-  fs.mkdirSync(config.dataDir, { recursive: true });
-  const db = new DatabaseSync(path.join(config.dataDir, 'cartaqr.db'));
+  fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
+  const file = path.join(config.dataDir, 'cartaqr.db');
+  const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
+  // Base de dados e ficheiros só legíveis pelo processo da app
+  for (const f of [config.dataDir, file, file + '-wal', file + '-shm']) { try { fs.chmodSync(f, f === config.dataDir ? 0o700 : 0o600); } catch { /* ainda não existe */ } }
   // Migrações aditivas (bases de dados criadas por versões anteriores)
   const ensure = (table: string, col: string, ddl: string) => {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -114,6 +117,9 @@ export function getDb(): DB {
   ensure('occasions', 'kind', "TEXT NOT NULL DEFAULT 'carta'");
   ensure('letters', 'extra', 'TEXT');
   ensure('letter_replies', 'kind', "TEXT NOT NULL DEFAULT 'message'");
+  ensure('users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('orders', 'customer_email_idx', 'TEXT');
+  ensure('orders', 'customer_phone_idx', 'TEXT');
   g.__cartaDb = db;
   return db;
 }

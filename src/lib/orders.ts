@@ -1,8 +1,9 @@
 // Lógica de negócio das encomendas e cartas (independente de UI e de HTTP).
 import bcrypt from 'bcryptjs';
 import { all, get, run, getDb, Row } from './db';
-import { newToken, newReference, cleanText, sign, verifySigned } from './security';
+import { newToken, newReference, cleanText, sign, verifySigned, hmac, safeEqual, encryptText, decryptText, blindIndex, assertIdentifiers } from './security';
 import { normalizePhone, luandaToUtc } from './format';
+import { stripImageMetadata } from './metadata';
 import { getSettings, getSetting } from './settings';
 import { removeFile, removeOrderDir, saveBuffer, validateUpload, MediaKind } from './storage';
 import { LetterPatch } from './validation';
@@ -25,8 +26,10 @@ export function parseExtra(raw: string | null | undefined): Record<string, strin
 
 // ---------------- Planos e ocasiões ----------------
 export function listPlans(activeOnly = true, kind?: 'carta' | 'evento'): Row[] {
-  const where = [activeOnly ? 'is_active = 1' : '', kind ? `kind = '${kind === 'evento' ? 'evento' : 'carta'}'` : ''].filter(Boolean).join(' AND ');
-  const rows = all(`SELECT * FROM plans ${where ? 'WHERE ' + where : ''} ORDER BY sort_order, id`);
+  const where: string[] = []; const params: unknown[] = [];
+  if (activeOnly) where.push('is_active = 1');
+  if (kind) { where.push('kind = ?'); params.push(kind === 'evento' ? 'evento' : 'carta'); }
+  const rows = all(`SELECT * FROM plans ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY sort_order, id`, ...params);
   return rows.map(decoratePlan);
 }
 export function getPlan(id: number): Row | undefined {
@@ -46,9 +49,24 @@ export function listOccasions(): Row[] { return all('SELECT * FROM occasions WHE
 // ---------------- Encomendas ----------------
 export function getOrderByToken(manageToken: string): Row | undefined {
   if (!manageToken || manageToken.length < 20) return undefined;
-  return get('SELECT * FROM orders WHERE manage_token = ?', manageToken);
+  return decodeOrder(get('SELECT * FROM orders WHERE manage_token = ?', manageToken));
 }
-export function getOrderById(id: number): Row | undefined { return get('SELECT * FROM orders WHERE id = ?', id); }
+export function getOrderById(id: number): Row | undefined { return decodeOrder(get('SELECT * FROM orders WHERE id = ?', id)); }
+
+/** Email e telefone do cliente ficam cifrados na base de dados; aqui são decifrados para uso no servidor. */
+function decodeOrder<T extends Row | undefined>(o: T): T {
+  if (!o) return o;
+  return { ...o, customer_email: decryptText(o.customer_email), customer_phone: decryptText(o.customer_phone) } as T;
+}
+/** Cifra contactos guardados em claro por versões anteriores (corre no arranque). */
+export function migrateEncryptedFields() {
+  for (const o of all<{ id: number; customer_email: string | null; customer_phone: string | null }>(
+    "SELECT id, customer_email, customer_phone FROM orders WHERE (customer_email IS NOT NULL AND customer_email NOT LIKE 'enc:%') OR (customer_phone IS NOT NULL AND customer_phone NOT LIKE 'enc:%')")) {
+    run('UPDATE orders SET customer_email = ?, customer_phone = ?, customer_email_idx = ?, customer_phone_idx = ? WHERE id = ?',
+      encryptText(decryptText(o.customer_email)), encryptText(decryptText(o.customer_phone)), blindIndex(decryptText(o.customer_email)), blindIndex(decryptText(o.customer_phone)), o.id);
+  }
+  for (const m of all<{ id: number; contact: string }>("SELECT id, contact FROM contact_messages WHERE contact NOT LIKE 'enc:%'")) run('UPDATE contact_messages SET contact = ? WHERE id = ?', encryptText(m.contact), m.id);
+}
 export function getLetterByOrder(orderId: number): Row | undefined { return get('SELECT * FROM letters WHERE order_id = ?', orderId); }
 export function getMemories(letterId: number): Row[] { return all('SELECT * FROM memories WHERE letter_id = ? ORDER BY sort_order, id', letterId); }
 export function getMedia(letterId: number): Row[] { return all('SELECT * FROM media_assets WHERE letter_id = ? ORDER BY sort_order, id', letterId); }
@@ -77,8 +95,8 @@ export function createOrder(input: {
   try {
     let ref = newReference();
     while (get('SELECT 1 FROM orders WHERE public_reference = ?', ref)) ref = newReference();
-    const o = run(`INSERT INTO orders(public_reference, manage_token, customer_name, customer_email, customer_phone, occasion, plan_id, amount, currency)
-                   VALUES(?,?,?,?,?,?,?,?,?)`, ref, newToken(), cleanText(input.customerName || input.senderName, 80), email, phone, input.occasion, plan.id, plan.effective_price, plan.currency || currency);
+    const o = run(`INSERT INTO orders(public_reference, manage_token, customer_name, customer_email, customer_phone, customer_email_idx, customer_phone_idx, occasion, plan_id, amount, currency)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)`, ref, newToken(), cleanText(input.customerName || input.senderName, 80), encryptText(email), encryptText(phone), blindIndex(email), blindIndex(phone), input.occasion, plan.id, plan.effective_price, plan.currency || currency);
     const orderId = Number(o.lastInsertRowid);
     run(`INSERT INTO letters(order_id, secure_token, recipient_name, sender_name, title, special_date, theme, language, extra, allow_reply)
          VALUES(?,?,?,?,?,?,?,?,?,?)`, orderId, newToken(32), cleanText(input.recipientName, 80), cleanText(input.senderName, 80),
@@ -129,6 +147,7 @@ export function updateLetter(order: Row, patch: LetterPatch, actor: 'customer' |
   if (patch.aiUsed) set('ai_used', 1);
   if (patch.pin !== undefined) set('pin_hash', patch.pin ? bcrypt.hashSync(patch.pin, 10) : null);
   const cols = Object.values(map);
+  assertIdentifiers(cols.map(([c]) => c), LETTER_COLUMNS);
   if (cols.length) run(`UPDATE letters SET ${cols.map(([c]) => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`, ...cols.map(([, v]) => v), letter.id);
   if (patch.memories) {
     run('DELETE FROM memories WHERE letter_id = ?', letter.id);
@@ -157,6 +176,7 @@ export function addMedia(order: Row, kind: Exclude<MediaKind, 'proof'>, buf: Buf
   if (kind === 'cover') { // só uma capa
     for (const old of all('SELECT id, storage_path FROM media_assets WHERE letter_id = ? AND type = ?', letter.id, 'cover')) { removeFile(old.storage_path); run('DELETE FROM media_assets WHERE id = ?', old.id); }
   }
+  if (check.mime.startsWith('image/')) buf = stripImageMetadata(buf, check.mime); // sem localização GPS
   const rel = saveBuffer(order.id, buf, check.ext);
   const next = (get<{ m: number }>('SELECT COALESCE(MAX(sort_order), -1) + 1 m FROM media_assets WHERE letter_id = ?', letter.id)?.m) || 0;
   const r = run(`INSERT INTO media_assets(letter_id, type, storage_path, file_size, mime_type, original_name, sort_order) VALUES(?,?,?,?,?,?,?)`,
@@ -196,8 +216,11 @@ export function reorderPhotos(order: Row, ids: number[]) {
 }
 
 // ---------------- Fluxo de estados ----------------
+const LETTER_COLUMNS = ['title', 'intro', 'main_message', 'closing_message', 'how_met', 'admire', 'tone', 'theme', 'special_date', 'music_mode', 'ambient', 'music_rights_ack', 'allow_reply', 'extra', 'recipient_name', 'sender_name', 'unlock_at', 'ai_used', 'pin_hash'] as const;
+const ORDER_STATUS_COLUMNS = ['payment_status', 'payment_proof_path', 'payment_proof_mime', 'payment_note', 'completed_at', 'discount_code', 'discount_amount', 'amount'] as const;
 function setStatus(order: Row, to: OrderStatus, actor: string, note?: string, extra: Record<string, unknown> = {}) {
   const cols = Object.keys(extra);
+  assertIdentifiers(cols, ORDER_STATUS_COLUMNS);
   run(`UPDATE orders SET order_status = ?, ${cols.map(c => `${c} = ?`).join(', ')}${cols.length ? ',' : ''} updated_at = datetime('now') WHERE id = ?`, to, ...cols.map(c => extra[c]), order.id);
   logEvent(order.id, order.order_status, to, actor, note);
 }
@@ -220,6 +243,7 @@ export function submitProof(order: Row, buf: Buffer, note: string) {
   const check = validateUpload('proof', buf, uploadLimits());
   if (!check.ok) throw new AppError('upload_invalid', check.error, 415);
   removeFile(order.payment_proof_path);
+  if (check.mime.startsWith('image/')) buf = stripImageMetadata(buf, check.mime);
   const rel = saveBuffer(order.id, buf, check.ext);
   run(`UPDATE orders SET payment_proof_path = ?, payment_proof_mime = ?, payment_note = ?, payment_status = 'proof_submitted' WHERE id = ?`, rel, check.mime, cleanText(note, 300), order.id);
   if (order.order_status !== 'proof_submitted') setStatus(order, 'proof_submitted', 'customer', 'Comprovativo enviado');
@@ -326,12 +350,14 @@ export function resolvePublicLetter(token: string): PublicLetterState {
 }
 
 export function verifyPin(letter: Row, pin: string): boolean { return !!letter.pin_hash && bcrypt.compareSync(pin, letter.pin_hash); }
-export function pinCookieValue(letterId: number): string { return sign(`pin:${letterId}:${Math.floor(Date.now() / 1000) + 6 * 3600}`); }
-export function pinCookieValid(letterId: number, cookie: string | undefined): boolean {
+// O cookie fica ligado ao PIN atual: se o PIN mudar, os acessos antigos deixam de valer.
+const pinStamp = (letter: Row) => hmac(`pinstamp:${letter.id}:${letter.pin_hash || ''}`).slice(0, 16);
+export function pinCookieValue(letter: Row): string { return sign(`pin:${letter.id}:${Math.floor(Date.now() / 1000) + 6 * 3600}:${pinStamp(letter)}`); }
+export function pinCookieValid(letter: Row, cookie: string | undefined): boolean {
   const p = verifySigned(cookie);
   if (!p) return false;
-  const [tag, id, exp] = p.split(':');
-  return tag === 'pin' && Number(id) === letterId && Number(exp) > Date.now() / 1000;
+  const [tag, id, exp, stamp] = p.split(':');
+  return tag === 'pin' && Number(id) === letter.id && Number(exp) > Date.now() / 1000 && !!stamp && safeEqual(stamp, pinStamp(letter));
 }
 
 // ---------------- Admin: listagem e métricas ----------------
@@ -339,13 +365,14 @@ export function listOrders(opts: { status?: string; q?: string }): Row[] {
   const where: string[] = []; const params: any[] = [];
   if (opts.status && ORDER_STATUSES.includes(opts.status as OrderStatus)) { where.push('o.order_status = ?'); params.push(opts.status); }
   if (opts.q) {
-    const like = `%${opts.q.replace(/[%_]/g, '')}%`;
-    where.push('(o.customer_name LIKE ? OR o.customer_email LIKE ? OR o.customer_phone LIKE ? OR o.public_reference LIKE ? OR l.recipient_name LIKE ?)');
-    params.push(like, like, like, like, like);
+    const q = opts.q.slice(0, 100); const like = `%${q.replace(/[%_\\]/g, '')}%`;
+    // email e telefone estão cifrados: procura-se pelo valor exato através do índice cego
+    where.push('(o.customer_name LIKE ? OR o.public_reference LIKE ? OR l.recipient_name LIKE ? OR o.customer_email_idx = ? OR o.customer_phone_idx = ?)');
+    params.push(like, like, like, blindIndex(q.trim().toLowerCase()), blindIndex(normalizePhone(q) || q));
   }
   return all(`SELECT o.*, l.title, l.recipient_name, l.secure_token, l.is_published, l.is_blocked, l.expires_at, p.name AS plan_name
               FROM orders o JOIN letters l ON l.order_id = o.id JOIN plans p ON p.id = o.plan_id
-              ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY o.updated_at DESC, o.id DESC LIMIT 200`, ...params);
+              ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY o.updated_at DESC, o.id DESC LIMIT 200`, ...params).map(decodeOrder);
 }
 export function metrics() {
   const byStatus = all<{ order_status: string; n: number }>('SELECT order_status, COUNT(*) n FROM orders GROUP BY order_status');

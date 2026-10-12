@@ -1,5 +1,7 @@
 import { get, run } from './db';
 import { hashPassword } from './auth-hash';
+import { isExamplePassword } from './secrets';
+import { migrateEncryptedFields } from './orders';
 import { CATEGORIES } from './categories';
 
 export const PLANS = [
@@ -38,8 +40,15 @@ export async function seed(opts: { adminEmail?: string; adminPassword?: string }
   });
   const email = (opts.adminEmail || process.env.ADMIN_EMAIL || 'admin@cartaqr.local').toLowerCase();
   const pass = opts.adminPassword || process.env.ADMIN_PASSWORD;
+  const weak = (p?: string) => !p || p.length < 12 || isExamplePassword(p) || /^(.)\1+$/.test(p);
   if (!get('SELECT 1 FROM users WHERE email = ?', email)) {
-    if (!pass || pass.length < 10) throw new Error('Define ADMIN_PASSWORD com pelo menos 10 caracteres antes de correr o seed.');
-    run('INSERT INTO users(email, role, password_hash) VALUES(?,?,?)', email, 'admin', await hashPassword(pass));
+    if (weak(pass)) throw new Error('Define ADMIN_PASSWORD com pelo menos 12 caracteres (e diferente do exemplo) antes de correr o seed.');
+    run('INSERT INTO users(email, role, password_hash) VALUES(?,?,?)', email, 'admin', await hashPassword(pass!));
+  } else if (process.env.ADMIN_RESET_PASSWORD === '1') {
+    // Para trocar a password: define ADMIN_PASSWORD nova + ADMIN_RESET_PASSWORD=1, reinicia, e depois remove ADMIN_RESET_PASSWORD.
+    if (weak(pass)) throw new Error('ADMIN_RESET_PASSWORD=1 exige uma ADMIN_PASSWORD forte (12+ caracteres).');
+    run('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE email = ?', await hashPassword(pass!), email);
+    console.warn('[segurança] Password do administrador atualizada. Remove ADMIN_RESET_PASSWORD das variáveis de ambiente.');
   }
+  migrateEncryptedFields();
 }

@@ -7,6 +7,7 @@ import { THEME_INFO } from '@/lib/themes';
 import { LetterView, type LetterViewData } from '../LetterView';
 import { Price } from '../Price';
 import { MediaStep } from './MediaStep';
+import { useFormGuard } from '../useFormGuard';
 import { EMPTY_FORM, TONES, type Form, type OccasionRow, type PlanRow, type ServerState } from './types';
 import { getCategory, sanitizeExtra, missingRequired, type ExtraField } from '@/lib/categories';
 
@@ -20,6 +21,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
   const [step, setStep] = useState(1);
   const [f, setF] = useState<Form>(EMPTY_FORM);
   const [token, setToken] = useState<string | null>(null);
+  const { guard } = useFormGuard();
   const [server, setServer] = useState<ServerState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -106,7 +108,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
       }
       if (step === 3) {
         if (!token) {
-          const r: any = await api('/api/orders', jsonInit('POST', { occasion: f.occasion, planId: f.planId, recipientName: f.recipientName, senderName: f.senderName, title: f.title, specialDate: f.specialDate, contact: f.contact, language: f.language, theme: f.theme, extra: sanitizeExtra(f.occasion, f.extra) }));
+          const r: any = await api('/api/orders', jsonInit('POST', { ...(await guard()), occasion: f.occasion, planId: f.planId, recipientName: f.recipientName, senderName: f.senderName, title: f.title, specialDate: f.specialDate, contact: f.contact, language: f.language, theme: f.theme, extra: sanitizeExtra(f.occasion, f.extra) }));
           if (!r.ok) { setError(r.error); return; }
           setToken(r.token);
           const s: any = await api(`/api/orders/${r.token}`); if (s.ok) setServer(s);

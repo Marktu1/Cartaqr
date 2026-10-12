@@ -3,3 +3,13 @@ node_modules
 data
 .env.local
 *.tsbuildinfo
+# segredos e dados (nunca no Git)
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+*.pem
+*.key
+.session-secret
+.data-key

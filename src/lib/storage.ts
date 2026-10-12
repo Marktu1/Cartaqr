@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from './config';
+import { encryptFile, decryptFile } from './security';
 
 export type MediaKind = 'photo' | 'cover' | 'video' | 'audio' | 'music' | 'proof';
 
@@ -74,11 +75,10 @@ function abs(rel: string) {
 export function saveBuffer(orderId: number, buf: Buffer, ext: string): string {
   const rel = `${orderId}/${crypto.randomUUID()}.${ext}`;
   const p = abs(rel);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, buf, { mode: 0o600 });
+  fs.mkdirSync(path.dirname(p), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(p, encryptFile(buf), { mode: 0o600 }); // cifrado em repouso (AES-256-GCM)
   return rel;
 }
-export function readFile(rel: string): Buffer | null { try { return fs.readFileSync(abs(rel)); } catch { return null; } }
-export function fileSize(rel: string): number | null { try { return fs.statSync(abs(rel)).size; } catch { return null; } }
+export function readFile(rel: string): Buffer | null { try { return decryptFile(fs.readFileSync(abs(rel))); } catch { return null; } }
 export function removeFile(rel: string | null | undefined) { if (!rel) return; try { fs.rmSync(abs(rel), { force: true }); } catch { /* ignore */ } }
 export function removeOrderDir(orderId: number) { try { fs.rmSync(abs(String(orderId)), { recursive: true, force: true }); } catch { /* ignore */ } }

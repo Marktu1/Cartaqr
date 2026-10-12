@@ -59,7 +59,7 @@ const assert = (c, m) => { if (!c) throw new Error('FALHOU: ' + m); console.log(
   await page.screenshot({ path: 'shot-qr-evento.png', fullPage: true });
   const link = await page.locator('p[aria-label="Link da carta"]').innerText();
   const gctx = await browser.newContext({ ...devices['iPhone 12'], locale: 'pt-PT' }); const g = await gctx.newPage(); const gerr = []; g.on('pageerror', e => gerr.push(e.message));
-  await g.goto(link); await g.getByRole('button', { name: /Abrir o convite/ }).click(); await g.waitForSelector('text=Confirma a tua presença');
+  await g.goto(link); await g.getByRole('button', { name: /^Toca no selo/ }).click(); await g.waitForSelector('text=Confirma a tua presença');
   assert(await g.locator('text=Salão Jardim das Acácias').count() > 0 && await g.locator('text=16:00').count() > 0, 'local e hora visíveis');
   await g.locator('text=Confirma a tua presença').scrollIntoViewIfNeeded(); await g.waitForTimeout(700); await g.screenshot({ path: 'shot-convite-rsvp.png' });
   await g.locator('#rs-name').fill('João Silva'); await g.getByRole('button', { name: 'Enviar resposta' }).click();
@@ -72,10 +72,10 @@ const assert = (c, m) => { if (!c) throw new Error('FALHOU: ' + m); console.log(
 
   step('5. Pedido de namoro: pergunta e resposta');
   const dctx = await browser.newContext({ ...devices['iPhone 12'] }); const d = await dctx.newPage();
-  await d.goto(BASE + '/exemplos/pergunta-para-ti'); await d.getByRole('button', { name: /^Abrir/ }).click(); await d.waitForSelector('text=Queres namorar comigo?');
+  await d.goto(BASE + '/exemplos/pergunta-para-ti'); await d.getByRole('button', { name: /^Toca no selo/ }).click(); await d.waitForSelector('text=Queres namorar comigo?');
   await d.getByRole('button', { name: 'Sim!' }).scrollIntoViewIfNeeded(); await d.waitForTimeout(700); await d.screenshot({ path: 'shot-pedido-namoro.png' });
   await d.getByRole('button', { name: 'Sim!' }).click(); await d.waitForSelector('text=Que comece uma linda história'); assert(true, 'resposta do exemplo (nada é enviado)');
-  await d.goto(BASE + '/exemplos/convite-casamento'); await d.getByRole('button', { name: /^Abrir/ }).click(); await d.waitForSelector('text=Confirma a tua presença'); await d.waitForTimeout(600);
+  await d.goto(BASE + '/exemplos/convite-casamento'); await d.getByRole('button', { name: /^Toca no selo/ }).click(); await d.waitForSelector('text=Confirma a tua presença'); await d.waitForTimeout(600);
   await d.screenshot({ path: 'shot-exemplo-convite.png' });
 
   assert(errors.length === 0, 'sem erros JS no cliente ' + errors.join('|'));
