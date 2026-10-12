@@ -49,7 +49,10 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
           if (r.order.status === 'published') { window.location.href = `/minha/${saved.token}`; return; }
           setStep(r.order.status === 'draft' || saved.step ? Math.min(saved.step || 1, 8) : 8);
           if (r.order.status === 'proof_submitted') setStep(8);
-        } else { setToken(null); localStorage.removeItem(STORE); }
+        } else { // a encomenda já não existe no servidor: mantém os textos e volta às Informações para a recriar
+          setToken(null); setServer(null);
+          if (form.title || form.recipientName) { setStep(3); setNotice('A tua encomenda anterior expirou no servidor. Os teus textos estão guardados: confirma os dados e toca em “Continuar”.'); }
+        }
         setReady(true);
       });
     } else { setStep(plan && occ ? 3 : occ ? 2 : 1); setReady(true); }
@@ -63,12 +66,32 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
   const cat = getCategory(f.occasion);
   const kindPlans = plans.filter(p => p.kind === cat.kind);
 
+  const [notice, setNotice] = useState('');
+  // O servidor de teste (Render grátis) apaga os dados quando reinicia. Se a encomenda já não existir,
+  // recriamo-la automaticamente com o que está guardado neste telemóvel, em vez de bloquear o cliente.
+  const recreate = useCallback(async (): Promise<string | null> => {
+    if (!f.contact) { setError('Esta encomenda expirou no servidor. Toca em “Recomeçar” e volta a preencher (os teus textos ficam guardados).'); return null; }
+    const r: any = await api('/api/orders', jsonInit('POST', { occasion: f.occasion, planId: f.planId, recipientName: f.recipientName, senderName: f.senderName, title: f.title, specialDate: f.specialDate, contact: f.contact, language: f.language, theme: f.theme, extra: sanitizeExtra(f.occasion, f.extra) }));
+    if (!r.ok) { setError(r.error); return null; }
+    const t: string = r.token;
+    const c: any = await api(`/api/orders/${t}`, jsonInit('PATCH', { howMet: f.howMet, admire: f.admire, tone: f.tone, mainMessage: f.mainMessage || undefined, closingMessage: f.closingMessage, memories: f.memories.filter(m => m.title || m.description).map(m => ({ ...m })), musicMode: f.musicMode === 'own' ? 'none' : f.musicMode, ambient: f.ambient, experience: f.experience || {} }));
+    setToken(t); if (c.ok) setServer(c); else { const g: any = await api(`/api/orders/${t}`); if (g.ok) setServer(g); }
+    setNotice('A tua encomenda tinha expirado no servidor e foi recriada com os teus textos. Se tinhas carregado fotos, vídeo ou áudio, volta à etapa 5 para os carregar de novo.');
+    return t;
+  }, [f]);
+  /** Chama a API da encomenda; se a encomenda tiver desaparecido do servidor, recria-a e tenta outra vez. */
+  const orderCall = useCallback(async (suffix: string, init?: RequestInit): Promise<any> => {
+    if (!token) return { ok: false, error: 'Encomenda em falta.' };
+    let r: any = await api(`/api/orders/${token}${suffix}`, init);
+    if (!r.ok && r.code === 'not_found') { const t = await recreate(); if (!t) return { ok: false, error: '', silent: true }; r = await api(`/api/orders/${t}${suffix}`, init); }
+    return r;
+  }, [token, recreate]);
   const patch = useCallback(async (body: Record<string, unknown>): Promise<boolean> => {
     if (!token) return false;
-    const r: any = await api(`/api/orders/${token}`, jsonInit('PATCH', body));
+    const r: any = await orderCall('', jsonInit('PATCH', body));
     if (r.ok) { setServer(r); return true; }
-    setError(r.error); return false;
-  }, [token]);
+    if (!r.silent) setError(r.error); return false;
+  }, [token, orderCall]);
 
   // --- validação por etapa ---
   function validate(): boolean {
@@ -104,8 +127,8 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
     setBusy(true);
     try {
       if (step === 2 && token && plan) {
-        const r: any = await api(`/api/orders/${token}`, jsonInit('PUT', { planId: plan.id, occasion: f.occasion }));
-        if (!r.ok) { setError(r.error); return; } setServer(r);
+        const r: any = await orderCall('', jsonInit('PUT', { planId: plan.id, occasion: f.occasion }));
+        if (!r.ok) { if (!r.silent) setError(r.error); return; } setServer(r);
       }
       if (step === 3) {
         if (!token) {
@@ -119,8 +142,8 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
       if (step === 6 && !(await patch({ musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck, experience: f.experience || {} }))) return;
       if (step === 7) {
         if (!(await patch({ title: f.title, mainMessage: f.mainMessage, closingMessage: f.closingMessage, theme: f.theme, allowReply: cat.proposal ? true : f.allowReply, pin: f.pin, unlockAt: f.unlockAt, musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck, experience: f.experience || {} }))) return;
-        const r: any = await api(`/api/orders/${token}/submit`, { method: 'POST' });
-        if (!r.ok) { setError(r.error); return; } setServer(r);
+        const r: any = await orderCall('/submit', { method: 'POST' });
+        if (!r.ok) { if (!r.silent) setError(r.error); return; } setServer(r);
       }
       setStep(s => Math.min(8, s + 1));
     } finally { setBusy(false); }
@@ -267,6 +290,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         {/* 8. Pagamento */}
         {step === 8 && token && server && (done ? <Done token={token} server={server} whatsapp={whatsapp} /> : <PaymentStep discountsAvailable={discountsAvailable} token={token} server={server} setServer={setServer} whatsapp={whatsapp} payment={payment} />)}
 
+        {notice && <p role="status" className="mt-5 rounded-xl bg-gold/15 p-3 text-sm font-semibold text-ink">{notice}</p>}
         {error && <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">{error}</p>}
         {!done && step < 8 && (
           <div className="mt-8 flex gap-3">
