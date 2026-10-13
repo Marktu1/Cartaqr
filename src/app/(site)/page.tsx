@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { listPlans } from '@/lib/orders';
-import { DEMOS, placeholderSvg } from '@/lib/demo';
+import { DEMOS, demoImage } from '@/lib/demo';
 import { qrSvg } from '@/lib/qr';
 import { config } from '@/lib/config';
 import { PlanCards } from '@/components/PlanCards';
@@ -11,6 +11,7 @@ import { Track } from '@/components/Track';
 import { CATEGORIES } from '@/lib/categories';
 import { EXPERIENCES } from '@/lib/experiences';
 import { formatMoney } from '@/lib/format';
+import { LandingMotion, HeroVideo } from '@/components/landing/Motion';
 
 const delay = (i: number) => ({ '--rv-delay': `${i * 0.08}s` }) as CSSProperties;
 
@@ -181,7 +182,7 @@ export default async function Home() {
               className="group w-[78%] shrink-0 snap-center overflow-hidden rounded-[22px] bg-mist md:w-auto">
               <div className="overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={placeholderSvg(d.photos[0].hue, d.title, 600, 480)} alt={`Imagem de demonstração para o exemplo “${d.title}”`} className="aspect-[5/4] w-full object-cover transition-transform duration-700 [transition-timing-function:var(--ease-apple)] group-hover:scale-[1.04]" loading="lazy" />
+                <img src={demoImage(d.photos[0], d.title, 600, 480)} alt={`Imagem de demonstração para o exemplo “${d.title}”`} className="aspect-[5/4] w-full object-cover transition-transform duration-700 [transition-timing-function:var(--ease-apple)] group-hover:scale-[1.04]" loading="lazy" />
               </div>
               <div className="p-6">
                 <p className="text-[12px] font-semibold uppercase tracking-[.08em] text-gold-deep">{d.occasion}</p>

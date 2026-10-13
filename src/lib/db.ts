@@ -120,6 +120,9 @@ export function getDb(): DB {
   ensure('users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
   ensure('orders', 'customer_email_idx', 'TEXT');
   ensure('orders', 'customer_phone_idx', 'TEXT');
+  ensure('letter_replies', 'open_at', 'TEXT');
+  ensure('letters', 'experience', 'TEXT');
+  ensure('memories', 'place', "TEXT NOT NULL DEFAULT ''");
   g.__cartaDb = db;
   return db;
 }

@@ -11,13 +11,13 @@ function csp(nonce: string, https: boolean) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? '' : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://images.unsplash.com", // fotos de exemplo nas páginas de demonstração
     "media-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
-    "frame-src 'none'",
+    "frame-src https://www.youtube-nocookie.com https://open.spotify.com", // só a "nossa música" escolhida na carta
     "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",

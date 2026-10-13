@@ -1,3 +1,4 @@
+import { describeReply } from '@/lib/experience';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import * as O from '@/lib/orders';
@@ -61,7 +62,7 @@ export default async function OrderDetail(props: { params: Promise<{ id: string 
             <p className="text-sm">{rsum.yesGuests} pessoa(s) vão ({rsum.yes} respostas) · {rsum.maybe} talvez · {rsum.no} não · limite {plan.max_guests}</p>
             {rsvps.length > 0 && <ul className="mt-2 space-y-1 text-sm">{rsvps.map(r => <li key={r.id}><strong>{r.guest_name}</strong> · {r.attending === 'yes' ? `Vai (${r.guests})` : r.attending === 'no' ? 'Não vai' : 'Talvez'}{r.message ? ` · “${r.message}”` : ''}</li>)}</ul>}</section>}
           {replies.length > 0 && <section className="card p-5" aria-labelledby="resp"><h2 id="resp" className="h-display mb-3 text-xl font-semibold text-wine">Respostas do destinatário</h2>
-            <ul className="space-y-2 text-sm">{replies.map(r => <li key={r.id} className={r.kind === 'answer' ? 'font-semibold' : ''}>{r.kind === 'answer' ? '★ ' : ''}{r.message} <span className="text-muted">({r.author || 'Anónimo'})</span></li>)}</ul></section>}
+            <ul className="space-y-2 text-sm">{replies.map(r => { const x = describeReply(r); return <li key={r.id} className={x.highlight ? 'font-semibold' : ''}><span className="text-xs text-wine">{x.badge}:</span> {x.text} <span className="text-muted">({r.author || 'Anónimo'})</span></li>; })}</ul></section>}
 
           <section className="card p-5" aria-labelledby="hist"><h2 id="hist" className="h-display mb-3 text-xl font-semibold text-wine">Histórico</h2>
             <ul className="space-y-1 text-sm">{events.map(e => <li key={e.id}><span className="text-muted">{e.created_at}</span> · {e.actor} · {e.from_status ? `${STATUS_LABEL[e.from_status] || e.from_status} → ` : ''}<strong>{STATUS_LABEL[e.to_status] || e.to_status}</strong>{e.note ? ` (${e.note})` : ''}</li>)}</ul></section>

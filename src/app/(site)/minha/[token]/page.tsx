@@ -1,3 +1,4 @@
+import { describeReply } from '@/lib/experience';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -72,7 +73,7 @@ export default async function MinhaPage(props: { params: Promise<{ token: string
           <a className="btn btn-secondary mt-4" href={`/api/orders/${params.token}/rsvps`}>Descarregar lista (CSV)</a></div>
       )}
 
-      {replies.length > 0 && <div className="card p-5"><h2 className="h-display mb-3 text-xl font-semibold text-wine">{cat.proposal ? 'A resposta' : 'Respostas recebidas'}</h2><ul className="space-y-3">{replies.map(r => <li key={r.id} className={`rounded-xl p-3 ${r.kind === 'answer' ? 'border-2 border-gold bg-gold/10 font-semibold' : 'bg-rose-soft/40'}`}><p className="whitespace-pre-line">{r.message}</p><p className="mt-1 text-xs text-muted">{r.author || 'Anónimo'} · {formatDate(r.created_at)}</p></li>)}</ul></div>}
+      {replies.length > 0 && <div className="card p-5"><h2 className="h-display mb-3 text-xl font-semibold text-wine">{cat.proposal ? 'A resposta' : 'Respostas recebidas'}</h2><ul className="space-y-3">{replies.map(r => { const x = describeReply(r); return <li key={r.id} className={`rounded-xl p-3 ${x.highlight ? 'border-2 border-gold bg-gold/10 font-semibold' : 'bg-rose-soft/40'}`}><p className="text-[11px] font-semibold uppercase tracking-wider text-wine">{x.badge}</p><p className="whitespace-pre-line">{x.text}</p><p className="mt-1 text-xs text-muted">{r.author || 'Anónimo'} · {formatDate(r.created_at)}</p></li>; })}</ul></div>}
     </div>
   );
 }

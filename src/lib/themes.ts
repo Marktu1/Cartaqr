@@ -7,6 +7,8 @@ export const THEME_INFO: Record<string, { name: string; description: string; var
   gala:        { name: 'Gala',        description: 'Noite elegante e dourado',  vars: { '--c-bg': '#1F1A1C', '--c-card': '#2A2326', '--c-accent': '#D9B76E', '--c-soft': '#3A3034', '--c-ink': '#F4ECE0' } },
   natureza:    { name: 'Natureza',    description: 'Verde suave e leve',        vars: { '--c-bg': '#F1F5EC', '--c-card': '#FBFDF8', '--c-accent': '#4E6B3F', '--c-soft': '#DCE8CF', '--c-ink': '#25301F' } },
   celebracao:  { name: 'Celebração',  description: 'Festa com toque dourado',   vars: { '--c-bg': '#FBF0EA', '--c-card': '#FFFDF9', '--c-accent': '#A3283F', '--c-soft': '#F5D9C9', '--c-ink': '#3A1C24' } },
+  mussulo:     { name: 'Mussulo',     description: 'Pôr do sol, areia e mar',   vars: { '--c-bg': '#FDF1E4', '--c-card': '#FFFAF3', '--c-accent': '#B8521F', '--c-soft': '#F8D7B4', '--c-ink': '#3B2014' } },
+  samakaka:    { name: 'Samakaka',    description: 'Cores vivas de pano angolano', vars: { '--c-bg': '#FFF6E9', '--c-card': '#FFFDF8', '--c-accent': '#8E1F2F', '--c-soft': '#F6D88E', '--c-ink': '#2B1A12' } },
 };
 export function themeStyle(theme: string): React.CSSProperties {
   return (THEME_INFO[theme] || THEME_INFO.romantico).vars as React.CSSProperties;

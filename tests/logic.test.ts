@@ -363,3 +363,34 @@ test('D3. Códigos e promoções: não acumulam por defeito; oferta da newslette
   E.DB.run('UPDATE discount_codes SET is_active = 0 WHERE code = ?', 'MENOS1000'); assert.equal(O.newsletterOffer(), null, 'código desativado não é oferecido');
   E.DB.run('UPDATE discount_codes SET is_active = 1 WHERE code = ?', 'MENOS1000');
 });
+
+test('M1. Magia da carta: limpeza, música, segredo e surpresa para mais tarde nunca vazam antes do tempo', async () => {
+  const X = await import('../src/lib/experience');
+  const e = X.sanitizeExperience({
+    teaser: '<b>Olá</b> amor', mood: 'panos', song: 'https://youtu.be/dQw4w9WgXcQ', cards: ['  A  ', '', 'B'], vouchers: Array(9).fill('Vale'),
+    secret: { hint: 'Onde?', answer: 'Ilha do Mussulo', message: 'Lá.' }, finale: { text: 'Amo-te', gesture: 'xpto' },
+    later: { date: '2099-01-01', message: 'Futuro' }, reactions: false, hack: 'x',
+  });
+  assert.equal(e.teaser, 'Olá amor'); assert.equal(e.mood, 'panos'); assert.deepEqual(e.cards, ['A', 'B']); assert.equal(e.vouchers!.length, 6);
+  assert.equal(e.finale!.gesture, 'raspar'); assert.equal(e.reactions, false); assert.ok(!('hack' in e));
+  assert.equal(X.sanitizeExperience({ song: 'https://evil.example/x' }).song, undefined);
+  assert.match(X.songEmbed('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')!.src, /open\.spotify\.com\/embed\/track\//);
+  assert.ok(X.answerMatches('  ilha do MUSSULO ', 'Ilha do Mussulo')); assert.ok(X.answerMatches('Ilha dó Mussulo', 'ilha do mussulo')); assert.ok(!X.answerMatches('Luanda', 'Mussulo'));
+  const pub = X.publicExperience(e);
+  assert.equal(JSON.stringify(pub).includes('Mussulo'), false, 'a resposta do segredo nunca vai para o navegador');
+  assert.equal((pub.secret as any).message, undefined); assert.equal(pub.later!.open, false); assert.equal(pub.later!.message, undefined);
+  const past = X.publicExperience({ later: { date: '2020-01-01', message: 'Já abriu' } });
+  assert.equal(past.later!.message, 'Já abriu');
+});
+
+test('M2. Magia guardada na carta e respostas novas (reação, vale, cápsula)', () => {
+  const { order, letter } = E.O.createOrder(baseOrder(plan('romantico').id) as any);
+  E.O.updateLetter(order, { experience: { vouchers: ['Vale um mufete'], secret: { hint: 'h', answer: 'a', message: 'm' } }, memories: [{ title: 'T', description: 'D', date: '2024-01-01', place: 'Ilha de Luanda' }] } as any);
+  const l = E.O.getLetterByOrder(order.id)!;
+  assert.ok(String(l.experience).includes('Vale um mufete'));
+  assert.equal(E.O.getMemories(letter.id)[0].place, 'Ilha de Luanda');
+  E.O.addReply(l, 'capsule', 'Ana', 'Promessa', '2099-01-01');
+  E.O.addReply(l, 'voucher', '', 'Vale um mufete');
+  const kinds = E.O.listReplies(l.id).map((r: any) => r.kind).sort();
+  assert.deepEqual(kinds, ['capsule', 'voucher']);
+});

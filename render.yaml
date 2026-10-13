@@ -1,0 +1,33 @@
+# Configuração do Render para produção (com disco permanente).
+# Os dados (base de dados SQLite + fotos, vídeos, áudios e comprovativos) ficam em /data e sobrevivem a reinícios e novos deploys.
+services:
+  - type: web
+    name: cartaqr
+    runtime: docker
+    plan: starter            # instância paga mais pequena (sem "adormecer"); o plano grátis não aceita discos
+    region: frankfurt
+    branch: claude/ui-design-system-5w68uz
+    healthCheckPath: /
+    disk:
+      name: cartaqr-data
+      mountPath: /data
+      sizeGB: 1              # chega para começar; pode ser aumentado depois (nunca diminuído)
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: PORT
+        value: "3000"
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: APP_URL
+        sync: false          # ex.: https://cartaqr.onrender.com (ou o teu domínio)
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AI_PROVIDER
+        value: mock
