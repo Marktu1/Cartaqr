@@ -7,6 +7,7 @@ import { formatMoney } from '@/lib/format';
 import { DEMOS } from '@/lib/demo';
 import { experienceOf } from '@/lib/experiences';
 import { Track } from '@/components/Track';
+import { artFor } from '@/lib/art';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -19,7 +20,7 @@ export default async function OcasiaoPage(props: { params: Promise<{ slug: strin
   const plans = listPlans(true, c.kind);
   const min = plans.length ? Math.min(...plans.map(p => p.effective_price)) : 0;
   const demo = DEMOS.find(d => d.category === c.slug) || DEMOS.find(d => d.slug === experienceOf(c.slug).demo) || (c.kind === 'evento' ? DEMOS.find(d => d.category === 'convite-casamento') : undefined);
-  const exp = experienceOf(c.slug); const special = exp.id !== 'padrao';
+  const exp = experienceOf(c.slug); const special = exp.id !== 'padrao'; const art = artFor(c.slug);
   const others = CATEGORIES.filter(x => x.kind === c.kind && x.slug !== c.slug && x.slug !== 'outra').slice(0, 6);
   return (
     <div className="section py-12">
@@ -37,6 +38,12 @@ export default async function OcasiaoPage(props: { params: Promise<{ slug: strin
         </div>
         {min > 0 && <p className="mt-4 text-sm text-muted">A partir de {formatMoney(min, 'Kz')} · {c.kind === 'evento' ? 'com confirmação de presença dos convidados' : 'link privado e QR Code incluídos'}</p>}
       </div>
+      {art && (
+        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[28px] bg-mist">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={art.src} alt={art.alt} className="aspect-[16/10] w-full object-cover sm:aspect-[16/8]" style={{ objectPosition: art.pos }} />
+        </div>
+      )}
       <div className="mx-auto mt-12 grid max-w-3xl gap-4 sm:grid-cols-2">
         <div className="card p-5"><p className="h-display text-lg font-semibold text-wine">O que vais preencher</p><ul className="mt-2 space-y-1 text-sm text-muted">
           {c.extra.map(f => <li key={f.key}>• {f.label}</li>)}<li>• {c.memories.heading}</li><li>• {c.message.label}</li></ul></div>

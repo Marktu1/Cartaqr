@@ -1,6 +1,6 @@
 import type { Experience } from './experience';
 
-// Experiências de demonstração: textos fictícios. Fotos do Unsplash (licença gratuita) quando `img` está definido; senão, imagem gerada (SVG).
+// Experiências de demonstração: textos fictícios. `img` pode ser uma arte do site (caminho começado por "/"), uma foto do Unsplash (licença gratuita) ou ficar vazio (imagem gerada em SVG).
 export type DemoLetter = {
   slug: string; category: string; extra?: Record<string, string>; occasion: string; theme: string; title: string; recipient: string; sender: string; intro: string; message: string;
   closing: string; date: string; memories: { title: string; description: string; date?: string; place?: string }[]; experience?: Experience; photos: { caption: string; hue: number; img?: string; credit?: string }[]; blurb: string;
@@ -24,7 +24,7 @@ export const DEMOS: DemoLetter[] = [
       finale: { text: 'Amo-te mais do que ontem e menos do que amanhã.', gesture: 'raspar' },
       later: { date: '2027-03-14', message: 'Mais um ano contigo. Abre esta parte no teu próximo aniversário: tenho uma nova surpresa à tua espera.' },
     },
-    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350, img: 'photo-1644041852210-4873f99366be', credit: 'Francis Odeyemi' }, { caption: 'O teu sorriso', hue: 10, img: 'photo-1508002366005-75a695ee2d17', credit: 'Isaiah McClean' }, { caption: 'Domingo', hue: 25, img: 'photo-1743172086091-b95acd708315', credit: 'Shawn Clark' }, { caption: 'Nós', hue: 340, img: 'photo-1655683576616-c40706fa79f2', credit: 'Iwaria Inc.' }],
+    photos: [{ caption: 'Um dia qualquer que ficou especial', hue: 350, img: '/media/artes/aniversario.webp' }, { caption: 'O teu sorriso', hue: 10, img: 'photo-1508002366005-75a695ee2d17', credit: 'Isaiah McClean' }, { caption: 'Domingo', hue: 25, img: 'photo-1743172086091-b95acd708315', credit: 'Shawn Clark' }, { caption: 'Nós', hue: 340, img: 'photo-1655683576616-c40706fa79f2', credit: 'Iwaria Inc.' }],
   },
   {
     slug: 'pergunta-para-ti', category: 'pedido-namoro', occasion: 'Pedido de namoro', theme: 'elegante', title: 'Tenho uma pergunta para ti', recipient: 'Carla Exemplo', sender: 'Diogo Exemplo',
@@ -39,7 +39,7 @@ export const DEMOS: DemoLetter[] = [
       cardsTitle: 'Porque és tu', cards: ['Ouves de verdade, mesmo quando falo demais', 'Ris de ti própria sem medo', 'Fazes toda a gente sentir-se em casa', 'Contigo, até a chuva é boa'],
       finale: { text: 'Já sei a resposta que espero ouvir… mas a decisão é toda tua.', gesture: 'caixa' },
     },
-    photos: [{ caption: 'Um instante nosso', hue: 38, img: 'photo-1765292783377-e2b769632228', credit: 'sammy swae' }, { caption: 'Onde tudo começou', hue: 30, img: 'photo-1682107845065-f89ebccb1523', credit: 'Ruben Cabango' }, { caption: 'Sempre a rir', hue: 45, img: 'photo-1611619669093-ea9860cf027f', credit: 'Gama. Films' }],
+    photos: [{ caption: 'Um instante nosso', hue: 38, img: '/media/artes/amor.webp' }, { caption: 'Onde tudo começou', hue: 30, img: 'photo-1682107845065-f89ebccb1523', credit: 'Ruben Cabango' }, { caption: 'Sempre a rir', hue: 45, img: 'photo-1611619669093-ea9860cf027f', credit: 'Gama. Films' }],
   },
   {
     slug: 'proximo-capitulo', category: 'formatura', extra: { course: 'Engenharia Informática' }, occasion: 'Formatura', theme: 'celebracao', title: 'O teu próximo capítulo começa agora', recipient: 'Eduardo Exemplo', sender: 'A tua família',
@@ -56,7 +56,7 @@ export const DEMOS: DemoLetter[] = [
       vouchers: ['Vale um almoço de domingo com a muamba da avó', 'Vale uma festa com a família toda'],
       finale: { text: 'O primeiro engenheiro da família. E o orgulho de todos nós.', gesture: 'fita' },
     },
-    photos: [{ caption: 'Dia de festa', hue: 5, img: 'photo-1612214495858-4f32b96155a7', credit: 'Felipe Gregate' }, { caption: 'Com quem nunca desistiu de ti', hue: 20, img: 'photo-1594750852532-822048f24b14', credit: 'Nqobile Vundla' }, { caption: 'O futuro é teu', hue: 350, img: 'photo-1594750852563-5ed8e0421d40', credit: 'Nqobile Vundla' }],
+    photos: [{ caption: 'Dia de festa', hue: 5, img: '/media/artes/formatura.webp' }, { caption: 'Com quem nunca desistiu de ti', hue: 20, img: 'photo-1594750852532-822048f24b14', credit: 'Nqobile Vundla' }, { caption: 'O futuro é teu', hue: 350, img: 'photo-1594750852563-5ed8e0421d40', credit: 'Nqobile Vundla' }],
   },
   {
     slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15', transport: 'Um autocarro privado parte às 15:00 do Largo da Independência e leva os convidados diretamente ao salão.\nNo fim da noite haverá regresso à cidade.', stay: 'Para quem vem de fora, reservámos quartos no Hotel Exemplo, a 5 minutos do salão.\nTarifa especial com o código “MARTA & RUI”.', gift: 'A vossa presença é o nosso maior presente. Se quiserem contribuir para a nossa lua de mel:\nIBAN AO06 0000 0000 0000 0000 0000 0 (exemplo)' },
@@ -69,7 +69,7 @@ export const DEMOS: DemoLetter[] = [
       { title: '18:00 Copo de água', description: 'Cocktail nos jardins.' },
       { title: '20:00 Jantar e festa', description: 'Muita música e alegria.' }],
     experience: { teaser: 'A Marta e o Rui têm uma notícia para te dar…' },
-    photos: [{ caption: 'Marta & Rui', hue: 45, img: 'photo-1695281536457-01f9a07c575b', credit: 'Samwel francis' }, { caption: 'O nosso caminho', hue: 30, img: 'photo-1595157724160-4aca7d33ea23', credit: 'Roman Derrick Okello' }],
+    photos: [{ caption: 'Marta & Rui', hue: 45, img: '/media/artes/casamento.webp' }, { caption: 'O nosso caminho', hue: 30, img: 'photo-1595157724160-4aca7d33ea23', credit: 'Roman Derrick Okello' }],
   },
   {
     slug: 'para-a-mae', category: 'dia-mae', extra: { lesson: 'A nunca desistir' }, occasion: 'Dia da Mãe', theme: 'familiar', title: 'Obrigado, mãe', recipient: 'Mamã', sender: 'Os teus filhos',
@@ -80,7 +80,7 @@ export const DEMOS: DemoLetter[] = [
       { title: 'A cozinha aos domingos', description: 'O cheiro do teu guisado a chamar toda a gente à mesa.' },
       { title: 'O primeiro dia de aulas', description: 'Seguraste-me a mão até eu ganhar coragem.', date: '2005-09-12' },
       { title: 'As viagens de carro', description: 'As tuas canções desafinadas que ainda sei de cor.' }],
-    photos: [{ caption: 'Domingo em família', hue: 28 }, { caption: 'Os teus abraços', hue: 15 }, { caption: 'Sempre juntos', hue: 40 }],
+    photos: [{ caption: 'Domingo em família', hue: 28, img: '/media/artes/dia-mae.webp' }, { caption: 'Os teus abraços', hue: 15 }, { caption: 'Sempre juntos', hue: 40 }],
   },
 ];
 
@@ -93,8 +93,9 @@ export function placeholderSvg(hue: number, label: string, w = 800, h = 1000): s
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-/** URL da foto de demonstração: Unsplash se houver `img`, senão o SVG gerado. */
+/** URL da foto de demonstração: arte local, Unsplash se houver `img`, senão o SVG gerado. */
 export function demoImage(p: { hue: number; img?: string }, label: string, w = 800, h = 1000): string {
+  if (p.img?.startsWith('/')) return p.img;
   if (p.img) return `https://images.unsplash.com/${p.img}?w=${w}&h=${h}&fit=crop&crop=faces&auto=format&q=70`;
   return placeholderSvg(p.hue, label, w, h);
 }
