@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { api, jsonInit, uploadWithProgress } from '@/lib/client';
 import { formatMoney, normalizePhone } from '@/lib/format';
 import { THEME_INFO } from '@/lib/themes';
-import { LetterView, type LetterViewData } from '../LetterView';
+import type { LetterViewData } from '../LetterView';
+import { ExperienceView } from '../ExperienceView';
 import { Price } from '../Price';
 import { MediaStep } from './MediaStep';
 import { useFormGuard } from '../useFormGuard';
@@ -236,7 +237,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         {/* 7. Pré-visualização */}
         {step === 7 && token && server && (
           <div className="space-y-6"><h2 className="h-display text-2xl font-semibold text-wine">Vê como vai ficar</h2>
-            <div className="mx-auto w-full max-w-[320px] rounded-[2rem] border-[7px] border-ink bg-ink"><div className="max-h-[520px] overflow-y-auto overscroll-contain rounded-[1.5rem]"><LetterView data={view} startOpen embedded /></div></div>
+            <div className="mx-auto w-full max-w-[320px] rounded-[2rem] border-[7px] border-ink bg-ink"><div className="max-h-[520px] overflow-y-auto overscroll-contain rounded-[1.5rem]"><ExperienceView data={view} startOpen embedded /></div></div>
             <p className="text-center text-sm text-muted">Desliza dentro do telemóvel para veres tudo.</p>
             <div className="space-y-4">
               <T id="p-title" label="Título" v={f.title} on={v => set('title', v)} err={fieldErr.title} />

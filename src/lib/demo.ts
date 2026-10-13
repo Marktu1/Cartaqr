@@ -38,7 +38,7 @@ export const DEMOS: DemoLetter[] = [
     photos: [{ caption: 'Dia de festa', hue: 5 }, { caption: 'Com quem nunca desistiu de ti', hue: 20 }, { caption: 'O futuro é teu', hue: 350 }],
   },
   {
-    slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15', gift: 'A vossa presença é o nosso maior presente. Se quiserem contribuir para a nossa lua de mel:\nIBAN AO06 0000 0000 0000 0000 0000 0 (exemplo)' },
+    slug: 'convite-casamento', category: 'convite-casamento', extra: { time: '16:00', venue: 'Salão Jardim das Acácias', address: 'Talatona, Luanda (exemplo)', dressCode: 'Traje social', rsvpDeadline: '2027-05-15', transport: 'Um autocarro privado parte às 15:00 do Largo da Independência e leva os convidados diretamente ao salão.\nNo fim da noite haverá regresso à cidade.', stay: 'Para quem vem de fora, reservámos quartos no Hotel Exemplo, a 5 minutos do salão.\nTarifa especial com o código “MARTA & RUI”.', gift: 'A vossa presença é o nosso maior presente. Se quiserem contribuir para a nossa lua de mel:\nIBAN AO06 0000 0000 0000 0000 0000 0 (exemplo)' },
     occasion: 'Convite de casamento', theme: 'gala', title: 'Vamos celebrar o nosso sim', recipient: 'Família e amigos', sender: 'Marta & Rui Exemplo',
     blurb: 'Convite digital com confirmação de presença.', date: '2027-06-19',
     intro: 'Duas famílias, um só coração. Queremos-te connosco neste dia.',
@@ -48,6 +48,17 @@ export const DEMOS: DemoLetter[] = [
       { title: '18:00 Copo de água', description: 'Cocktail nos jardins.' },
       { title: '20:00 Jantar e festa', description: 'Muita música e alegria.' }],
     photos: [{ caption: 'Marta & Rui', hue: 45 }, { caption: 'O nosso caminho', hue: 30 }],
+  },
+  {
+    slug: 'para-a-mae', category: 'dia-mae', extra: { lesson: 'A nunca desistir' }, occasion: 'Dia da Mãe', theme: 'familiar', title: 'Obrigado, mãe', recipient: 'Mamã', sender: 'Os teus filhos',
+    blurb: 'Uma carta cheia de recordações para a mãe.', date: '2027-05-02',
+    intro: 'Há coisas que só uma mãe sabe fazer: amar sem pedir nada em troca.',
+    message: 'Mamã,\n\nCresci a ver-te acordar antes de todos e adormecer depois de todos. Só agora percebo quanto isso custava e como o fazias parecer fácil.\n\nObrigado pelos domingos com cheiro a comida de casa, pelos conselhos que nunca pedi e que sempre precisei, e pelo abraço que resolve tudo.',
+    closing: 'Amo-te, mãe. Feliz Dia da Mãe.', memories: [
+      { title: 'A cozinha aos domingos', description: 'O cheiro do teu guisado a chamar toda a gente à mesa.' },
+      { title: 'O primeiro dia de aulas', description: 'Seguraste-me a mão até eu ganhar coragem.', date: '2005-09-12' },
+      { title: 'As viagens de carro', description: 'As tuas canções desafinadas que ainda sei de cor.' }],
+    photos: [{ caption: 'Domingo em família', hue: 28 }, { caption: 'Os teus abraços', hue: 15 }, { caption: 'Sempre juntos', hue: 40 }],
   },
 ];
 

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import * as O from '@/lib/orders';
 import { requireAdmin } from '@/lib/auth';
 import { buildLetterView } from '@/lib/view';
-import { LetterView } from '@/components/LetterView';
+import { ExperienceView } from '@/components/ExperienceView';
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -13,5 +13,5 @@ export default async function AdminPreview(props: { params: Promise<{ id: string
   const order = O.getOrderById(Number(params.id)); if (!order) notFound();
   const letter = O.getLetterByOrder(order.id)!;
   const data = { ...buildLetterView(order, letter, { ttl: 3600 }), demo: true };
-  return (<><div className="bg-gold/20 px-4 py-2 text-center text-sm font-semibold">Pré-visualização do administrador · estado: {order.order_status} · as respostas não são enviadas</div><LetterView data={data} /></>);
+  return (<><div className="bg-gold/20 px-4 py-2 text-center text-sm font-semibold">Pré-visualização do administrador · estado: {order.order_status} · as respostas não são enviadas</div><ExperienceView data={data} /></>);
 }

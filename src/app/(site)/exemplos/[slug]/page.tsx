@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { DEMOS, placeholderSvg } from '@/lib/demo';
 import { getCategory } from '@/lib/categories';
-import { LetterView, type LetterViewData } from '@/components/LetterView';
+import type { LetterViewData } from '@/components/LetterView';
+import { ExperienceView } from '@/components/ExperienceView';
 
 export function generateStaticParams() { return DEMOS.map(d => ({ slug: d.slug })); }
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -27,7 +28,7 @@ export default async function DemoPage(props: { params: Promise<{ slug: string }
       <div className="sticky top-12 z-30 border-b border-gold/30 bg-gold/15 px-4 py-2 text-center text-sm">
         <strong>Exemplo fictício</strong> · nomes e imagens de demonstração. <Link href="/criar" className="font-semibold text-wine underline">Criar a minha</Link>
       </div>
-      <LetterView data={data} />
+      <ExperienceView data={data} />
     </>
   );
 }

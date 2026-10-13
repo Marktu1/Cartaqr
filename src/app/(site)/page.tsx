@@ -9,6 +9,7 @@ import { Faq } from '@/components/Faq';
 import { NewsletterForm } from '@/components/NewsletterForm';
 import { Track } from '@/components/Track';
 import { CATEGORIES } from '@/lib/categories';
+import { EXPERIENCES } from '@/lib/experiences';
 import { formatMoney } from '@/lib/format';
 
 const delay = (i: number) => ({ '--rv-delay': `${i * 0.08}s` }) as CSSProperties;
@@ -84,6 +85,29 @@ export default async function Home() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      {/* Experiências: cada momento tem o seu próprio mundo */}
+      <section id="experiencias" className="scroll-mt-12 bg-white pt-24" aria-labelledby="exp-t">
+        <div className="wrap-wide">
+          <h2 id="exp-t" className="t-section text-center text-ink" data-rv>Cada momento, o seu próprio mundo.</h2>
+          <p className="t-lead mx-auto mt-3 max-w-[44ch] text-center text-muted" data-rv>Não é um modelo com cores diferentes: cada ocasião tem o seu visual, o seu ritmo e a sua animação.</p>
+          <div className="mt-12 grid gap-3 md:grid-cols-3">
+            {([
+              { id: 'refinado', title: 'O convite de casamento', bg: 'linear-gradient(160deg,#43141F,#6B2536)', fg: '#F6E9EC', cta: 'Ver o convite' },
+              { id: 'pedido', title: 'O pedido de namoro', bg: 'linear-gradient(160deg,#12080D,#3A1424)', fg: '#F7EAEC', cta: 'Ver a pergunta' },
+              { id: 'familia', title: 'A carta para a mãe', bg: 'linear-gradient(160deg,#F4E6CB,#E9C9A4)', fg: '#3A271C', cta: 'Ver o álbum' },
+            ] as const).map((e, i) => (
+              <Link key={e.id} href={`/exemplos/${EXPERIENCES[e.id].demo}`} data-rv style={{ ...delay(i), background: e.bg, color: e.fg }}
+                className="group flex min-h-[320px] flex-col justify-between rounded-[26px] p-7 transition-transform duration-500 [transition-timing-function:var(--ease-apple)] hover:scale-[1.015]">
+                <span className="text-[12px] font-semibold uppercase tracking-[.22em] opacity-70">{EXPERIENCES[e.id].name}</span>
+                <span><span className="block text-[30px] font-semibold leading-tight">{e.title}</span>
+                  <span className="mt-2 block text-[15px] leading-snug opacity-80">{EXPERIENCES[e.id].tagline}</span>
+                  <span className="mt-5 inline-block rounded-full border border-current px-4 py-2 text-[13px] font-semibold">{e.cta} →</span></span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
