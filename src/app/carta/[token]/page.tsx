@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { resolvePublicLetter, pinCookieValid, trackLetterView } from '@/lib/orders';
 import { buildLetterView } from '@/lib/view';
-import { LetterView } from '@/components/LetterView';
+import { ExperienceView } from '@/components/ExperienceView';
 import { LockedCountdown } from '@/components/LockedCountdown';
 import { getCategory } from '@/lib/categories';
 import { formatLuanda } from '@/lib/format';
@@ -38,5 +38,5 @@ export default async function CartaPage(props: { params: Promise<{ token: string
   const { letter, order } = r;
   if (letter.pin_hash && !pinCookieValid(letter, (await cookies()).get(pinCookieName(letter.id))?.value)) return <PinGate token={params.token} />;
   trackLetterView(letter.id);
-  return <LetterView data={buildLetterView(order, letter, { token: params.token })} />;
+  return <ExperienceView data={buildLetterView(order, letter, { token: params.token })} />;
 }

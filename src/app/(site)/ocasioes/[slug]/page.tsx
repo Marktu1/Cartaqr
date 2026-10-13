@@ -5,6 +5,7 @@ import { CATEGORIES, CATEGORY_MAP } from '@/lib/categories';
 import { listPlans } from '@/lib/orders';
 import { formatMoney } from '@/lib/format';
 import { DEMOS } from '@/lib/demo';
+import { experienceOf } from '@/lib/experiences';
 import { Track } from '@/components/Track';
 
 export const dynamic = 'force-dynamic';
@@ -17,19 +18,22 @@ export default async function OcasiaoPage(props: { params: Promise<{ slug: strin
   const c = CATEGORY_MAP[(await props.params).slug]; if (!c) notFound();
   const plans = listPlans(true, c.kind);
   const min = plans.length ? Math.min(...plans.map(p => p.effective_price)) : 0;
-  const demo = DEMOS.find(d => d.category === c.slug) || (c.kind === 'evento' ? DEMOS.find(d => d.category === 'convite-casamento') : undefined);
+  const demo = DEMOS.find(d => d.category === c.slug) || DEMOS.find(d => d.slug === experienceOf(c.slug).demo) || (c.kind === 'evento' ? DEMOS.find(d => d.category === 'convite-casamento') : undefined);
+  const exp = experienceOf(c.slug); const special = exp.id !== 'padrao';
   const others = CATEGORIES.filter(x => x.kind === c.kind && x.slug !== c.slug && x.slug !== 'outra').slice(0, 6);
   return (
     <div className="section py-12">
       <Track name="category_view" />
+      {special && <p className="mx-auto mb-6 w-fit rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[.2em] text-white" style={{ background: exp.hue }}>Experiência {exp.name}</p>}
       <div className="mx-auto max-w-2xl text-center">
         <span className="flex mx-auto h-14 w-14 items-center justify-center rounded-full bg-rose-soft text-2xl text-wine" aria-hidden>{c.glyph}</span>
         <p className="chip mt-4">{c.kind === 'evento' ? 'Convite de evento' : 'Carta QR'}</p>
         <h1 className="h-display mt-3 text-4xl font-semibold text-wine">{c.page.title}</h1>
         <p className="mt-4 text-lg text-muted">{c.page.text}</p>
+        {special && <p className="mt-2 text-base text-muted">{exp.tagline}</p>}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Link href={`/criar?ocasiao=${c.slug}`} className="btn btn-primary">Criar {c.kind === 'evento' ? 'o meu convite' : 'a minha carta'}</Link>
-          {demo && <Link href={`/exemplos/${demo.slug}`} className="btn btn-secondary">Ver exemplo</Link>}
+          {demo && <Link href={`/exemplos/${demo.slug}`} className="btn btn-secondary">{special ? 'Ver a experiência' : 'Ver exemplo'}</Link>}
         </div>
         {min > 0 && <p className="mt-4 text-sm text-muted">A partir de {formatMoney(min, 'Kz')} · {c.kind === 'evento' ? 'com confirmação de presença dos convidados' : 'link privado e QR Code incluídos'}</p>}
       </div>

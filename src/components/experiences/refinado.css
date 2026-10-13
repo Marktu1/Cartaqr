@@ -82,3 +82,14 @@
 .rf .eyebrow.num, .rf .lede, .rf .tl .time, .rf .cd .n { font-variant-numeric: lining-nums; }
 .rf .eyebrow { font-variant-numeric: lining-nums; }
 .rf .arch .in h2 { font-size: 38px; white-space: nowrap; }
+
+/* Capa com foto em arco */
+.rf .cover-arch { display: block; width: 210px; height: 270px; object-fit: cover; margin: 0 auto 28px; border-radius: 105px 105px 14px 14px; box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--hair), 0 22px 40px -22px rgba(67,20,31,.5); }
+/* Galeria de fotografias em arco */
+.rf .gal { display: flex; gap: 18px; overflow-x: auto; padding: 8px 36px 24px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.rf .gal::-webkit-scrollbar { display: none; }
+.rf .gal figure { flex: 0 0 62%; max-width: 250px; margin: 0; scroll-snap-align: center; }
+.rf .gal img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 125px 125px 12px 12px; box-shadow: 0 0 0 5px var(--paper), 0 0 0 6px var(--hair); }
+.rf .gal figcaption { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--muted); margin-top: 14px; }
+/* Envelope: usa a paleta refinada */
+.rf .env-overlay { font-family: var(--serif); }

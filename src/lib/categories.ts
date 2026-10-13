@@ -227,7 +227,9 @@ export const CATEGORIES: Category[] = [
   {
     ...eventBase, slug: 'convite-casamento', name: 'Convite de casamento', short: 'Um convite digital com confirmação de presença.', glyph: '⚭', theme: 'gala',
     labels: { ...eventBase.labels, sender: 'Os noivos', senderPh: 'Ex.: Ana & Bruno', title: 'Título do convite', titlePh: 'Ex.: Vamos casar!' },
-    extra: eventExtra('Ex.: Traje social'),
+    extra: [...eventExtra('Ex.: Traje social'),
+      { key: 'transport', label: 'Transporte para os convidados (opcional)', type: 'textarea', placeholder: 'Ex.: Autocarro privado às 15:45 na Praça da República, regresso no fim da noite.', max: 400, hint: 'Aparece numa secção “Transporte”.' },
+      { key: 'stay', label: 'Onde ficar (opcional)', type: 'textarea', placeholder: 'Ex.: Hotel Palácio da Serra · tarifa especial com o código “INES & TOMAS”.', max: 400, hint: 'Aparece numa secção “Onde ficar”.' }],
     message: { label: 'Mensagem aos convidados', hint: 'Convida com carinho e explica o essencial.', ph: 'Depois de tantos anos juntos, vamos dizer sim…' },
     kicker: 'Estás convidado(a)', open: 'Abrir o convite', qrInstruction: 'Lê o código para abrir o convite',
     aiHint: 'Convite de casamento caloroso e elegante. Usa os dados do evento (data, hora, local) tal como foram indicados.',
