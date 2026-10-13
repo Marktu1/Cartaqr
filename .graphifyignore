@@ -1,0 +1,6 @@
+art-candidates/
+public/
+.claude/
+tests/
+*.md
+graphify-out/
