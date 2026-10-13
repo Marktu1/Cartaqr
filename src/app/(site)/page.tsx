@@ -12,6 +12,7 @@ import { CATEGORIES } from '@/lib/categories';
 import { EXPERIENCES } from '@/lib/experiences';
 import { formatMoney } from '@/lib/format';
 import { LandingMotion, HeroVideo } from '@/components/landing/Motion';
+import { ART, artFor } from '@/lib/art';
 
 const delay = (i: number) => ({ '--rv-delay': `${i * 0.08}s` }) as CSSProperties;
 
@@ -73,6 +74,27 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Momento: uma fotografia grande, como as faixas de imagem da Apple */}
+      <section className="bg-white pb-3" aria-labelledby="momento-t">
+        <div className="wrap-wide">
+          <div className="relative flex flex-col overflow-hidden rounded-[28px] bg-night sm:block sm:min-h-[600px]" data-rv>
+            {/* No telemóvel o texto fica por cima da fotografia (sem tapar o rosto); a partir de sm, sobre a imagem. */}
+            <div className="relative order-2 h-[380px] sm:absolute sm:inset-0 sm:h-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ART.marginal.src} alt={ART.marginal.alt} className="h-full w-full object-cover" style={{ objectPosition: ART.marginal.pos }} loading="lazy" />
+              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-night to-transparent sm:hidden" aria-hidden />
+              <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,rgba(20,6,12,.6)_0%,rgba(20,6,12,.15)_45%,rgba(20,6,12,0)_70%)] sm:block" aria-hidden />
+            </div>
+            <div className="relative order-1 max-w-[30ch] px-7 pt-12 text-white sm:px-14 sm:pt-20">
+              <p className="t-eyebrow text-gold">Feito em Angola</p>
+              <h2 id="momento-t" className="t-tile mt-1">O sorriso de quem abre.</h2>
+              <p className="t-lead mt-3 text-white/80">Uma carta que chega no telemóvel e fica guardada para sempre: na Marginal, em casa ou do outro lado do mundo.</p>
+              <Link href="/criar" className="btn btn-light mt-7">Criar a minha carta</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Como funciona */}
       <section className="bg-mist py-24" aria-labelledby="como">
         <div className="wrap">
@@ -118,14 +140,26 @@ export default async function Home() {
           <h2 id="ocasioes-t" className="t-section text-center text-ink" data-rv>Uma carta para cada momento.</h2>
           <p className="t-lead mx-auto mt-3 max-w-[40ch] text-center text-muted" data-rv>Cada ocasião tem perguntas, estilo e texto próprios.</p>
           <div className="mt-14 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-            {letterCats.map((c, i) => (
-              <Link key={c.slug} href={`/ocasioes/${c.slug}`} data-rv style={delay(i % 4)}
-                className="group rounded-[22px] bg-mist p-5 transition-transform duration-500 [transition-timing-function:var(--ease-apple)] hover:scale-[1.02] sm:p-6">
-                <span className="block text-[28px] leading-none text-wine" aria-hidden>{c.glyph}</span>
-                <p className="mt-8 text-[17px] font-semibold text-ink">{c.name}</p>
-                <p className="mt-0.5 text-[14px] leading-snug text-muted">{c.short}</p>
-              </Link>
-            ))}
+            {letterCats.map((c, i) => {
+              const art = artFor(c.slug);
+              return (
+                <Link key={c.slug} href={`/ocasioes/${c.slug}`} data-rv style={delay(i % 4)}
+                  className="group flex flex-col overflow-hidden rounded-[22px] bg-mist transition-transform duration-500 [transition-timing-function:var(--ease-apple)] hover:scale-[1.02]">
+                  {art ? (
+                    <div className="aspect-[4/3] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={art.src} alt="" className="h-full w-full object-cover transition-transform duration-700 [transition-timing-function:var(--ease-apple)] group-hover:scale-[1.05]" style={{ objectPosition: art.pos }} loading="lazy" />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-[4/3] items-center justify-center bg-rose-soft text-[44px] leading-none text-wine" aria-hidden>{c.glyph}</div>
+                  )}
+                  <div className="p-5 sm:p-6">
+                    <p className="text-[17px] font-semibold text-ink">{c.name}</p>
+                    <p className="mt-0.5 text-[14px] leading-snug text-muted">{c.short}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -159,12 +193,20 @@ export default async function Home() {
               <Link href={`/exemplos/convite-casamento`} className="btn btn-outline-light">Ver um convite</Link>
             </div>
             <div className="mt-auto grid w-full max-w-[460px] grid-cols-2 gap-2 pt-12">
-              {eventCats.map(c => (
-                <Link key={c.slug} href={`/ocasioes/${c.slug}`} className="rounded-[18px] bg-white/[.07] p-4 text-left transition-colors hover:bg-white/[.12]">
-                  <span className="text-xl text-gold" aria-hidden>{c.glyph}</span>
-                  <p className="mt-3 text-[15px] font-semibold leading-tight">{c.name}</p>
-                </Link>
-              ))}
+              {eventCats.map(c => {
+                const art = artFor(c.slug);
+                return (
+                  <Link key={c.slug} href={`/ocasioes/${c.slug}`} className="group relative flex min-h-[120px] flex-col justify-end overflow-hidden rounded-[18px] bg-white/[.07] p-4 text-left transition-colors hover:bg-white/[.12]">
+                    {art && <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={art.src} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition-transform duration-700 [transition-timing-function:var(--ease-apple)] group-hover:scale-[1.06]" style={{ objectPosition: art.pos }} loading="lazy" />
+                      <span className="absolute inset-0 bg-[linear-gradient(0deg,rgba(14,5,9,.85)_0%,rgba(14,5,9,.1)_70%)]" aria-hidden />
+                    </>}
+                    <span className="relative text-xl text-gold" aria-hidden>{c.glyph}</span>
+                    <p className="relative mt-2 text-[15px] font-semibold leading-tight">{c.name}</p>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -241,9 +283,12 @@ export default async function Home() {
       {/* CTA final */}
       <section className="bg-white py-24">
         <div className="wrap-wide">
-          <div className="rounded-[28px] bg-[radial-gradient(120%_120%_at_50%_0%,#7A1F38_0%,#521328_45%,#2A0913_100%)] px-6 py-24 text-center text-white" data-rv>
-            <h2 className="t-section mx-auto max-w-[20ch]">A tua memória merece mais do que uma mensagem comum.</h2>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="relative overflow-hidden rounded-[28px] bg-[#2A0913] px-6 py-24 text-center text-white" data-rv>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ART.envelope.src} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" loading="lazy" />
+            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_0%,rgba(122,31,56,.55)_0%,rgba(82,19,40,.75)_50%,rgba(42,9,19,.92)_100%)]" aria-hidden />
+            <h2 className="t-section relative mx-auto max-w-[20ch]">A tua memória merece mais do que uma mensagem comum.</h2>
+            <div className="relative mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/criar" className="btn btn-light">Criar agora</Link>
               <Link href="/precos" className="btn btn-outline-light">Ver preços</Link>
             </div>
