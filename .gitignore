@@ -13,3 +13,8 @@ data
 *.key
 .session-secret
 .data-key
+graphify-out/cache/
+graphify-out/graph.html
+graphify-out/manifest.json
+graphify-out/.graphify_root
+graphify-out/20*/
