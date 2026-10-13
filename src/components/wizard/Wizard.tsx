@@ -16,6 +16,8 @@ import { getCategory, sanitizeExtra, missingRequired, type ExtraField } from '@/
 
 const STEPS = ['Ocasião', 'Plano', 'Informações', 'Mensagem', 'Conteúdos', 'Magia', 'Pré-visualização', 'Pagamento'];
 const STORE = 'cq_wizard_v1';
+/** Encomendas que já não se editam no assistente. */
+const FINISHED = ['payment_confirmed', 'in_production', 'published', 'expired', 'cancelled'];
 const AMBIENTS: [string, string][] = [['piano-suave', 'Piano suave'], ['chuva-leve', 'Chuva leve'], ['ondas', 'Ondas do mar']];
 
 type Props = { plans: PlanRow[]; occasions: OccasionRow[]; whatsapp: string; payment: { instructions: string; account: string }; aiAvailable: boolean; discountsAvailable?: boolean; initialPlan?: string; initialOccasion?: string };
@@ -49,7 +51,15 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         if (r.ok) {
           setServer(r);
           setF(prev => (prev.title || prev.recipientName ? prev : formFromServer(r, prev)));
-          if (r.order.status === 'published') { window.location.href = `/minha/${saved.token}`; return; }
+          if (FINISHED.includes(r.order.status)) { // encomenda anterior já fechada: começa uma nova em vez de voltar sempre para ela
+            const fresh = { ...EMPTY_FORM };
+            if (plan) fresh.planId = plan.id;
+            if (occ) { fresh.occasion = occ.slug; fresh.theme = occ.default_theme; }
+            if (plan && occ && plan.kind !== occ.kind) fresh.planId = null;
+            setToken(null); setServer(null); setF(fresh); setStep(plan && occ ? 3 : occ ? 2 : 1);
+            setNotice(`A tua encomenda anterior (${r.order.reference}) continua disponível no link que recebeste. Aqui começas uma nova.`);
+            setReady(true); return;
+          }
           setStep(r.order.status === 'draft' || saved.step ? Math.min(saved.step || 1, 8) : 8);
           if (r.order.status === 'proof_submitted') setStep(8);
         } else { // a encomenda já não existe no servidor: mantém os textos e volta às Informações para a recriar
