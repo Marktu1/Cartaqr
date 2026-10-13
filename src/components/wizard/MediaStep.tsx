@@ -56,7 +56,7 @@ export function MediaStep({ token, server, setServer }: { token: string; server:
 
       <section aria-labelledby="up-photos" className="space-y-3">
         <h3 id="up-photos" className="h-display text-lg font-semibold text-wine">Fotografias <span className="text-sm font-normal text-muted">({photos.length}/{plan.maxPhotos})</span></h3>
-        <Drop id="in-photos" label="Adiciona fotografias" accept="image/jpeg,image/png,image/webp" kind="photo" multiple hint="Podes escolher várias de uma vez." />
+        <Drop id="in-photos" label="Adiciona fotografias" accept="image/jpeg,image/png,image/webp" kind="photo" multiple hint="Podes escolher várias de uma vez. Na carta, a 1.ª fotografia aparece junto à 1.ª memória, a 2.ª junto à 2.ª, e assim por diante; podes mudar a ordem na pré-visualização. Escreve uma legenda: onde foi, o que aconteceu, uma piada só vossa." />
         {photos.length === 0 ? <p className="rounded-xl border border-dashed border-wine/25 p-4 text-center text-sm text-muted">Ainda não adicionaste fotografias. Podes continuar sem elas, mas uma carta com fotos fica bem mais especial.</p> : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {photos.map((p, i) => (

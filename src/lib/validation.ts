@@ -3,7 +3,7 @@ import { normalizePhone } from './format';
 import { CATEGORY_SLUGS } from './categories';
 
 export const OCCASIONS = CATEGORY_SLUGS;
-export const THEMES = ['romantico', 'elegante', 'divertido', 'minimalista', 'familiar', 'celebracao', 'gala', 'natureza'] as const;
+export const THEMES = ['romantico', 'elegante', 'divertido', 'minimalista', 'familiar', 'celebracao', 'gala', 'natureza', 'mussulo', 'samakaka'] as const;
 export const TONES = ['romantico', 'emocionante', 'divertido', 'elegante', 'simples', 'poetico'] as const;
 export const AMBIENTS = ['none', 'piano-suave', 'chuva-leve', 'ondas'] as const;
 
@@ -32,6 +32,7 @@ export const memorySchema = z.object({
   title: z.string().trim().max(100).default(''),
   description: z.string().trim().max(600).default(''),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')),
+  place: z.string().trim().max(80).optional(),
 });
 
 export const letterPatchSchema = z.object({
@@ -52,6 +53,7 @@ export const letterPatchSchema = z.object({
   pin: z.string().regex(/^\d{4,6}$/, 'O PIN deve ter 4 a 6 números.').or(z.literal('')).optional(),
   memories: z.array(memorySchema).max(8).optional(),
   extra: z.record(z.string(), z.string().max(700)).optional(),
+  experience: z.record(z.string(), z.unknown()).optional(),
   recipientName: name.optional(),
   senderName: name.optional(),
   aiUsed: z.boolean().optional(),

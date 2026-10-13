@@ -9,10 +9,12 @@ import { ExperienceView } from '../ExperienceView';
 import { Price } from '../Price';
 import { MediaStep } from './MediaStep';
 import { useFormGuard } from '../useFormGuard';
+import { ExperienceEditor, experienceErrors } from './ExperienceEditor';
+import { publicExperience } from '@/lib/experience';
 import { EMPTY_FORM, TONES, type Form, type OccasionRow, type PlanRow, type ServerState } from './types';
 import { getCategory, sanitizeExtra, missingRequired, type ExtraField } from '@/lib/categories';
 
-const STEPS = ['Ocasião', 'Plano', 'Informações', 'Mensagem', 'Conteúdos', 'Música', 'Pré-visualização', 'Pagamento'];
+const STEPS = ['Ocasião', 'Plano', 'Informações', 'Mensagem', 'Conteúdos', 'Magia', 'Pré-visualização', 'Pagamento'];
 const STORE = 'cq_wizard_v1';
 const AMBIENTS: [string, string][] = [['piano-suave', 'Piano suave'], ['chuva-leve', 'Chuva leve'], ['ondas', 'Ondas do mar']];
 
@@ -50,7 +52,10 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
           if (r.order.status === 'published') { window.location.href = `/minha/${saved.token}`; return; }
           setStep(r.order.status === 'draft' || saved.step ? Math.min(saved.step || 1, 8) : 8);
           if (r.order.status === 'proof_submitted') setStep(8);
-        } else { setToken(null); localStorage.removeItem(STORE); }
+        } else { // a encomenda já não existe no servidor: mantém os textos e volta às Informações para a recriar
+          setToken(null); setServer(null);
+          if (form.title || form.recipientName) { setStep(3); setNotice('A tua encomenda anterior expirou no servidor. Os teus textos estão guardados: confirma os dados e toca em “Continuar”.'); }
+        }
         setReady(true);
       });
     } else { setStep(plan && occ ? 3 : occ ? 2 : 1); setReady(true); }
@@ -64,12 +69,32 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
   const cat = getCategory(f.occasion);
   const kindPlans = plans.filter(p => p.kind === cat.kind);
 
+  const [notice, setNotice] = useState('');
+  // O servidor de teste (Render grátis) apaga os dados quando reinicia. Se a encomenda já não existir,
+  // recriamo-la automaticamente com o que está guardado neste telemóvel, em vez de bloquear o cliente.
+  const recreate = useCallback(async (): Promise<string | null> => {
+    if (!f.contact) { setError('Esta encomenda expirou no servidor. Toca em “Recomeçar” e volta a preencher (os teus textos ficam guardados).'); return null; }
+    const r: any = await api('/api/orders', jsonInit('POST', { occasion: f.occasion, planId: f.planId, recipientName: f.recipientName, senderName: f.senderName, title: f.title, specialDate: f.specialDate, contact: f.contact, language: f.language, theme: f.theme, extra: sanitizeExtra(f.occasion, f.extra) }));
+    if (!r.ok) { setError(r.error); return null; }
+    const t: string = r.token;
+    const c: any = await api(`/api/orders/${t}`, jsonInit('PATCH', { howMet: f.howMet, admire: f.admire, tone: f.tone, mainMessage: f.mainMessage || undefined, closingMessage: f.closingMessage, memories: f.memories.filter(m => m.title || m.description).map(m => ({ ...m })), musicMode: f.musicMode === 'own' ? 'none' : f.musicMode, ambient: f.ambient, experience: f.experience || {} }));
+    setToken(t); if (c.ok) setServer(c); else { const g: any = await api(`/api/orders/${t}`); if (g.ok) setServer(g); }
+    setNotice('A tua encomenda tinha expirado no servidor e foi recriada com os teus textos. Se tinhas carregado fotos, vídeo ou áudio, volta à etapa 5 para os carregar de novo.');
+    return t;
+  }, [f]);
+  /** Chama a API da encomenda; se a encomenda tiver desaparecido do servidor, recria-a e tenta outra vez. */
+  const orderCall = useCallback(async (suffix: string, init?: RequestInit): Promise<any> => {
+    if (!token) return { ok: false, error: 'Encomenda em falta.' };
+    let r: any = await api(`/api/orders/${token}${suffix}`, init);
+    if (!r.ok && r.code === 'not_found') { const t = await recreate(); if (!t) return { ok: false, error: '', silent: true }; r = await api(`/api/orders/${t}${suffix}`, init); }
+    return r;
+  }, [token, recreate]);
   const patch = useCallback(async (body: Record<string, unknown>): Promise<boolean> => {
     if (!token) return false;
-    const r: any = await api(`/api/orders/${token}`, jsonInit('PATCH', body));
+    const r: any = await orderCall('', jsonInit('PATCH', body));
     if (r.ok) { setServer(r); return true; }
-    setError(r.error); return false;
-  }, [token]);
+    if (!r.silent) setError(r.error); return false;
+  }, [token, orderCall]);
 
   // --- validação por etapa ---
   function validate(): boolean {
@@ -88,6 +113,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
       else if (!/^\S+@\S+\.\S+$/.test(f.contact.trim()) && !normalizePhone(f.contact)) e.contact = 'Indica um email válido ou um telefone (ex.: 923 456 789).';
     }
     if (step === 4 && f.mainMessage.trim().length < 10) e.mainMessage = `Escreve: ${cat.message.label.toLowerCase()} (ou usa “Ajudar-me a escrever com IA”).`;
+    if (step === 6) Object.assign(e, experienceErrors(f.experience || {}));
     if (step === 6 && f.musicMode === 'own' && !f.musicRightsAck) e.rights = 'Confirma que tens direitos para usar a música.';
     if (step === 6 && f.musicMode === 'own' && !server?.media.some(m => m.type === 'music')) e.music = 'Carrega o ficheiro de música ou escolhe outra opção.';
     if (step === 7) {
@@ -104,8 +130,8 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
     setBusy(true);
     try {
       if (step === 2 && token && plan) {
-        const r: any = await api(`/api/orders/${token}`, jsonInit('PUT', { planId: plan.id, occasion: f.occasion }));
-        if (!r.ok) { setError(r.error); return; } setServer(r);
+        const r: any = await orderCall('', jsonInit('PUT', { planId: plan.id, occasion: f.occasion }));
+        if (!r.ok) { if (!r.silent) setError(r.error); return; } setServer(r);
       }
       if (step === 3) {
         if (!token) {
@@ -116,11 +142,11 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         } else if (!(await patch({ recipientName: f.recipientName, senderName: f.senderName, title: f.title, specialDate: f.specialDate, theme: f.theme, extra: sanitizeExtra(f.occasion, f.extra) }))) return;
       }
       if (step === 4 && !(await patch({ howMet: f.howMet, admire: f.admire, tone: f.tone, mainMessage: f.mainMessage, closingMessage: f.closingMessage, memories: f.memories.filter(m => m.title || m.description).map(m => ({ ...m })), aiUsed: f.aiUsed || undefined }))) return;
-      if (step === 6 && !(await patch({ musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck }))) return;
+      if (step === 6 && !(await patch({ musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck, experience: f.experience || {} }))) return;
       if (step === 7) {
-        if (!(await patch({ title: f.title, mainMessage: f.mainMessage, closingMessage: f.closingMessage, theme: f.theme, allowReply: cat.proposal ? true : f.allowReply, pin: f.pin, unlockAt: f.unlockAt, musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck }))) return;
-        const r: any = await api(`/api/orders/${token}/submit`, { method: 'POST' });
-        if (!r.ok) { setError(r.error); return; } setServer(r);
+        if (!(await patch({ title: f.title, mainMessage: f.mainMessage, closingMessage: f.closingMessage, theme: f.theme, allowReply: cat.proposal ? true : f.allowReply, pin: f.pin, unlockAt: f.unlockAt, musicMode: f.musicMode, ambient: f.ambient, musicRightsAck: f.musicRightsAck, experience: f.experience || {} }))) return;
+        const r: any = await orderCall('/submit', { method: 'POST' });
+        if (!r.ok) { if (!r.silent) setError(r.error); return; } setServer(r);
       }
       setStep(s => Math.min(8, s + 1));
     } finally { setBusy(false); }
@@ -139,6 +165,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
       video: m.find(x => x.type === 'video') ? { url: m.find(x => x.type === 'video')!.url } : null,
       audios: m.filter(x => x.type === 'audio' || (x.type === 'music' && f.musicMode === 'own')).map(x => ({ url: x.url, label: x.type === 'music' ? 'Música' : 'Mensagem de áudio' })),
       ambient: f.musicMode === 'ambient' ? f.ambient : null, allowReply: false, category: f.occasion, extra: sanitizeExtra(f.occasion, f.extra), rsvp: cat.rsvp ? { open: true } : undefined, demo: true,
+      experience: publicExperience(f.experience || {}, { reveal: true }),
     };
   }, [f, server, cat]);
 
@@ -232,7 +259,13 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         {step === 5 && token && server && <div><h2 className="h-display mb-5 text-2xl font-semibold text-wine">Fotografias, vídeo e áudio</h2><MediaStep token={token} server={server} setServer={setServer} /></div>}
 
         {/* 6. Música */}
-        {step === 6 && token && server && <MusicStep f={f} set={set} err={fieldErr} token={token} server={server} setServer={setServer} />}
+        {step === 6 && token && server && (
+          <div className="space-y-8">
+            <div><h2 className="h-display text-2xl font-semibold text-wine">A magia da carta</h2>
+              <p className="mt-1 text-muted">Tudo é opcional. Escolhe só o que combina com a pessoa: menos é muitas vezes mais.</p></div>
+            <ExperienceEditor value={f.experience || {}} onChange={v => set('experience', v)} category={f.occasion} isEvent={cat.kind === 'evento'} recipientName={f.recipientName} err={fieldErr} />
+            <MusicStep f={f} set={set} err={fieldErr} token={token} server={server} setServer={setServer} />
+          </div>)}
 
         {/* 7. Pré-visualização */}
         {step === 7 && token && server && (
@@ -260,6 +293,7 @@ export function Wizard({ plans, occasions, whatsapp, payment, aiAvailable, disco
         {/* 8. Pagamento */}
         {step === 8 && token && server && (done ? <Done token={token} server={server} whatsapp={whatsapp} /> : <PaymentStep discountsAvailable={discountsAvailable} token={token} server={server} setServer={setServer} whatsapp={whatsapp} payment={payment} />)}
 
+        {notice && <p role="status" className="mt-5 rounded-xl bg-gold/15 p-3 text-sm font-semibold text-ink">{notice}</p>}
         {error && <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">{error}</p>}
         {!done && step < 8 && (
           <div className="mt-8 flex gap-3">
@@ -284,11 +318,11 @@ function ExtraInput({ field, value, onChange, err }: { field: ExtraField; value:
 }
 
 function formFromServer(r: ServerState, prev: Form): Form {
-  const l = r.letter; const mem = r.memories.map(m => ({ title: m.title, description: m.description }));
-  const want = getCategory(r.order.occasion).memories.count; while (mem.length < want) mem.push({ title: '', description: '' });
+  const l = r.letter; const mem = r.memories.map(m => ({ title: m.title, description: m.description, date: m.date || '', place: m.place || '' }));
+  const want = getCategory(r.order.occasion).memories.count; while (mem.length < want) mem.push({ title: '', description: '', date: '', place: '' });
   return { ...prev, occasion: r.order.occasion, planId: r.order.planId, recipientName: l.recipientName, senderName: l.senderName, title: l.title, specialDate: l.specialDate || '', theme: l.theme,
     howMet: l.howMet || '', admire: l.admire || '', memories: mem, mainMessage: l.mainMessage, closingMessage: l.closingMessage, tone: l.tone || 'romantico',
-    musicMode: (l.musicMode as Form['musicMode']) || 'none', ambient: l.ambient || 'piano-suave', musicRightsAck: l.musicRightsAck, allowReply: l.allowReply, unlockAt: l.unlockAt || '', contact: prev.contact, extra: l.extra || {} };
+    musicMode: (l.musicMode as Form['musicMode']) || 'none', ambient: l.ambient || 'piano-suave', musicRightsAck: l.musicRightsAck, allowReply: l.allowReply, unlockAt: l.unlockAt || '', contact: prev.contact, extra: l.extra || {}, experience: l.experience || {} };
 }
 
 function T({ id, label, v, on, err, hint, auto, inputMode, ph }: { id: string; label: string; v: string; on: (v: string) => void; err?: string; hint?: string; auto?: string; inputMode?: 'email' | 'text'; ph?: string }) {
@@ -309,14 +343,16 @@ function MessageStep({ f, set, err, token, aiAvailable, occasionName }: { f: For
     else if (action === 'suggest_closing') { set('closingMessage', r.text); set('aiUsed', true); }
     else { setDraft(r.text); setDraftFor(action); }
   }
-  const mem = (i: number, k: 'title' | 'description', v: string) => set('memories', f.memories.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const mem = (i: number, k: 'title' | 'description' | 'date' | 'place', v: string) => set('memories', f.memories.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
   return (
     <div className="space-y-5"><h2 className="h-display text-2xl font-semibold text-wine">Memórias e mensagem</h2>
       <p className="text-muted">Quanto mais contares, mais especial fica. Nada é obrigatório, exceto a mensagem principal.</p>
       {cat.howMet && <div><label className="label" htmlFor="howmet">{cat.howMet.label}</label><textarea id="howmet" className="field min-h-[80px]" placeholder={cat.howMet.ph} value={f.howMet} onChange={e => set('howMet', e.target.value)} /></div>}
       <fieldset className="space-y-3"><legend className="label">{cat.memories.heading}</legend><p className="hint">{cat.memories.hint}</p>
         {f.memories.map((m, i) => (<div key={i} className="rounded-xl border border-wine/10 p-3"><label className="sr-only" htmlFor={`m-t-${i}`}>Título da memória {i + 1}</label><input id={`m-t-${i}`} className="field mb-2" placeholder={cat.memories.itemPh} value={m.title} onChange={e => mem(i, 'title', e.target.value)} maxLength={100} />
-          <label className="sr-only" htmlFor={`m-d-${i}`}>Descrição da memória {i + 1}</label><textarea id={`m-d-${i}`} className="field min-h-[64px]" placeholder={cat.memories.descPh} value={m.description} onChange={e => mem(i, 'description', e.target.value)} maxLength={600} /></div>))}
+          <label className="sr-only" htmlFor={`m-d-${i}`}>Descrição da memória {i + 1}</label><textarea id={`m-d-${i}`} className="field min-h-[64px]" placeholder={cat.memories.descPh} value={m.description} onChange={e => mem(i, 'description', e.target.value)} maxLength={600} />
+          {cat.kind === 'carta' && <div className="mt-2 grid grid-cols-2 gap-2"><div><label className="text-xs font-semibold text-muted" htmlFor={`m-w-${i}`}>Quando? (opcional)</label><input id={`m-w-${i}`} type="date" className="field !min-h-[42px] !py-2 text-sm" value={m.date || ''} onChange={e => mem(i, 'date', e.target.value)} /></div>
+            <div><label className="text-xs font-semibold text-muted" htmlFor={`m-p-${i}`}>Onde? (opcional)</label><input id={`m-p-${i}`} className="field !min-h-[42px] !py-2 text-sm" placeholder="Ex.: Ilha de Luanda" maxLength={80} value={m.place || ''} onChange={e => mem(i, 'place', e.target.value)} /></div></div>}</div>))}
       </fieldset>
       {cat.admire && <div><label className="label" htmlFor="admire">{cat.admire.label}</label><textarea id="admire" className="field min-h-[80px]" placeholder={cat.admire.ph} value={f.admire} onChange={e => set('admire', e.target.value)} /></div>}
       <fieldset><legend className="label">Tom da mensagem</legend><div className="flex flex-wrap gap-2">{TONES.map(([k, n]) => <label key={k} className={`cursor-pointer rounded-full border-2 px-4 py-2 text-sm font-semibold ${f.tone === k ? 'border-wine bg-rose-soft/50' : 'border-wine/15'}`}><input type="radio" name="tone" className="sr-only" checked={f.tone === k} onChange={() => set('tone', k)} />{f.tone === k ? '✓ ' : ''}{n}</label>)}</div></fieldset>
@@ -361,7 +397,7 @@ function MusicStep({ f, set, err, token, server, setServer }: { f: Form; set: <K
     <label className={`block rounded-xl border-2 p-4 ${disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'} ${f.musicMode === v ? 'border-wine bg-rose-soft/40' : 'border-wine/15'}`}>
       <input type="radio" name="music" className="sr-only" disabled={disabled} checked={f.musicMode === v} onChange={() => set('musicMode', v)} /><span className="font-semibold">{f.musicMode === v ? '✓ ' : ''}{title}</span><br /><span className="text-sm text-muted">{desc}</span></label>);
   return (
-    <div className="space-y-4"><h2 className="h-display text-2xl font-semibold text-wine">Música ou ambiente</h2>
+    <div className="space-y-4"><h2 className="h-display text-xl font-semibold text-wine">Som de fundo</h2>
       <p className="text-sm text-muted">O som só começa quando a pessoa tocar em “Abrir a minha carta” e no botão de som.</p>
       {opt('none', 'Sem música', 'Só a carta, em silêncio.')}
       {opt('ambient', 'Ambiente sonoro simples', 'Piano suave, chuva leve ou ondas. Sem direitos de autor.')}

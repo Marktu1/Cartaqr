@@ -15,6 +15,7 @@ export default async function Settings(props: { searchParams: Promise<{ msg?: st
   return (
     <div className="space-y-8">
       <h1 className="h-display text-3xl font-semibold text-wine">Configurações</h1>
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="font-semibold text-wine">Cópia de segurança</p><p className="text-sm text-muted">Descarrega a base de dados (encomendas, cartas, respostas e configurações). Faz isto uma vez por semana.</p></div><a href="/api/admin/backup" className="btn btn-secondary btn-sm">Descarregar cópia</a></div>
       {searchParams.msg && <p role="status" className="rounded-xl bg-green-50 p-3 text-green-900">{searchParams.msg}</p>}
 
       <form action={A.saveSettingsAction} className="card space-y-4 p-5">

@@ -4,6 +4,7 @@ import { rateLimit, clientIp, signedMediaUrl, BodyTooLarge, checkBot, consumeFor
 import { getPublicSettings } from './settings';
 import { Row } from './db';
 import { utcToLuanda } from './format';
+import { parseExperience } from './experience';
 
 export function ok(data: unknown = {}, status = 200) { return NextResponse.json({ ok: true, ...(data as object) }, { status }); }
 export function fail(error: string, status = 400, code = 'error') { return NextResponse.json({ ok: false, error, code }, { status }); }
@@ -63,9 +64,9 @@ export function serializeOrder(order: Row) {
       closingMessage: letter.closing_message, specialDate: letter.special_date, unlockAt: utcToLuanda(letter.unlock_at), theme: letter.theme, tone: letter.tone, howMet: letter.how_met, admire: letter.admire,
       musicMode: letter.music_mode, ambient: letter.ambient, musicRightsAck: !!letter.music_rights_ack, allowReply: !!letter.allow_reply,
       coverMediaId: letter.cover_media_id, hasPin: !!letter.pin_hash, isPublished: !!letter.is_published, expiresAt: letter.expires_at,
-      publicPath: letter.is_published ? `/carta/${letter.secure_token}` : null, extra: parseExtra(letter.extra),
+      publicPath: letter.is_published ? `/carta/${letter.secure_token}` : null, extra: parseExtra(letter.extra), experience: parseExperience(letter.experience),
     },
-    memories: getMemories(letter.id).map(m => ({ title: m.title, description: m.description, date: m.date || '' })),
+    memories: getMemories(letter.id).map(m => ({ title: m.title, description: m.description, date: m.date || '', place: m.place || '' })),
     media,
     limits: uploadLimits(),
     whatsapp: s.whatsapp,
