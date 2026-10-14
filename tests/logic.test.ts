@@ -394,3 +394,18 @@ test('M2. Magia guardada na carta e respostas novas (reação, vale, cápsula)',
   const kinds = E.O.listReplies(l.id).map((r: any) => r.kind).sort();
   assert.deepEqual(kinds, ['capsule', 'voucher']);
 });
+
+test('M3. Regras das respostas à carta (submitReply) na camada de negócio', () => {
+  const { order } = E.O.createOrder(baseOrder(plan('romantico').id) as any);
+  E.O.updateLetter(order, { experience: { vouchers: ['Vale um jantar'] } } as any);
+  const l = E.O.getLetterByOrder(order.id)!; const o = E.O.getOrderById(order.id)!;
+  assert.deepEqual(E.O.submitReply(l, o, { kind: 'voucher', author: '', message: 'Vale um jantar' }), {});
+  assert.throws(() => E.O.submitReply(l, o, { kind: 'voucher', author: '', message: 'Vale inventado' }), /Vale inválido/);
+  assert.throws(() => E.O.submitReply(l, o, { kind: 'reaction', author: '', message: 'não é emoji' }), /Reação inválida/);
+  const cap = E.O.submitReply(l, o, { kind: 'capsule', author: 'Ana', message: 'Prometo voltar à Ilha' });
+  assert.match(String(cap.openAt), /^\d{4}-\d{2}-\d{2}$/);
+  E.O.submitReply(l, o, { kind: 'capsule', author: 'Ana', message: 'Segunda promessa' });
+  E.O.submitReply(l, o, { kind: 'capsule', author: 'Ana', message: 'Terceira promessa' });
+  assert.throws(() => E.O.submitReply(l, o, { kind: 'capsule', author: 'Ana', message: 'Quarta' }), /cápsulas suficientes/);
+  assert.throws(() => E.O.submitReply(l, o, { choice: 'yes', kind: 'message', author: '', message: '' }), /não tem pergunta/);
+});

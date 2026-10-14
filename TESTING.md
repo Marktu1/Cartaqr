@@ -3,7 +3,7 @@
 ## Automáticos
 
 ```bash
-npm test                 # 31 testes de lógica (BD isolada em /tmp). Não precisa de servidor
+npm test                 # 45 testes de lógica (BD isolada em /tmp). Não precisa de servidor
 ```
 
 Testes ponta a ponta HTTP (contra servidor de produção local, BD isolada):
@@ -14,7 +14,7 @@ export DATA_DIR=/tmp/e2e-data SESSION_SECRET=e2e-secret-e2e-secret-e2e-secret-12
        APP_URL=http://localhost:3111 CRON_SECRET=e2e-cron ADMIN_EMAIL=admin@test.local ADMIN_PASSWORD='Password#12345'
 node --import tsx scripts/seed.ts
 npx next start -p 3111 &
-npm run test:e2e         # 12 testes HTTP (eventos, RSVP, newsletter, cartão PDF, agendamento)
+npm run test:e2e         # 13 testes HTTP (também correm no GitHub em cada push) (eventos, RSVP, newsletter, cartão PDF, agendamento)
 ```
 (Reinicia o servidor entre corridas: o rate limiting é em memória e o teste de IA esgota o limite.)
 

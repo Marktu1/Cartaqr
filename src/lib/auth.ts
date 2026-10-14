@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { get, run } from './db';
+import { get, run, all } from './db';
 import { sign, verifySigned, rateLimit } from './security';
 import { adminCookieName, adminCookieOptions } from './cookies';
 import { isExamplePassword } from './secrets';
@@ -60,6 +60,7 @@ export async function requireAdmin(): Promise<number> {
   return id;
 }
 
+export function recentAdminLogs(limit = 25) { return all('SELECT * FROM admin_logs ORDER BY id DESC LIMIT ?', limit); }
 export function logAdmin(adminId: number | null, action: string, target?: string, details?: string) {
   run('INSERT INTO admin_logs(admin_id, action, target, details) VALUES(?,?,?,?)', adminId, action, target ?? null, details ?? null);
 }

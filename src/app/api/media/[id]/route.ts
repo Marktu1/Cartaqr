@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get } from '@/lib/db';
+import { mediaForServing } from '@/lib/media';
 import { readFile } from '@/lib/storage';
 import { verifyMediaSig } from '@/lib/security';
 
@@ -7,7 +7,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const params = await ctx.params;
   const id = Number(params.id); const u = new URL(req.url);
   if (!Number.isInteger(id) || !verifyMediaSig(id, u.searchParams.get('exp'), u.searchParams.get('sig'))) return new NextResponse('Link inválido ou expirado.', { status: 403 });
-  const m = get('SELECT m.storage_path, m.mime_type, l.is_blocked FROM media_assets m JOIN letters l ON l.id = m.letter_id WHERE m.id = ?', id);
+  const m = mediaForServing(id);
   const buf = m && !m.is_blocked ? readFile(m.storage_path) : null;
   if (!m || !buf || m.is_blocked) return new NextResponse('Ficheiro não encontrado.', { status: 404 });
   // suporte a Range (necessário para vídeo/áudio em telemóveis)

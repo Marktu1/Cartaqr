@@ -38,3 +38,29 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+  e2e:
+    name: Testes ponta a ponta (servidor real)
+    runs-on: ubuntu-latest
+    env:
+      DATA_DIR: /tmp/e2e-data
+      SESSION_SECRET: e2e-secret-e2e-secret-e2e-secret-1234567
+      AI_PROVIDER: mock
+      APP_URL: http://localhost:3111
+      CRON_SECRET: e2e-cron
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: 'Password#12345'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: mkdir -p "$DATA_DIR" && node --import tsx scripts/seed.ts
+      - name: Arrancar o servidor
+        run: |
+          npx next start -p 3111 > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3111/ && exit 0; sleep 1; done
+          cat server.log; exit 1
+      - run: npm run test:e2e
+      - if: failure()
+        run: cat server.log

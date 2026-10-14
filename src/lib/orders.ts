@@ -1,81 +1,31 @@
-// Lógica de negócio das encomendas e cartas (independente de UI e de HTTP).
+// Lógica de negócio das encomendas (independente de UI e de HTTP).
+// Este ficheiro é também a porta de entrada: re-exporta os módulos de domínio, por isso
+// `import { … } from '@/lib/orders'` continua a funcionar em todo o código.
 import bcrypt from 'bcryptjs';
 import { all, get, run, getDb, Row } from './db';
-import { newToken, newReference, cleanText, sign, verifySigned, hmac, safeEqual, encryptText, decryptText, blindIndex, assertIdentifiers } from './security';
+import { newToken, newReference, cleanText, encryptText, blindIndex, assertIdentifiers } from './security';
 import { normalizePhone, luandaToUtc } from './format';
 import { stripImageMetadata } from './metadata';
-import { getSettings, getSetting } from './settings';
-import { removeFile, removeOrderDir, saveBuffer, validateUpload, MediaKind } from './storage';
+import { getSetting } from './settings';
+import { removeFile, removeOrderDir, saveBuffer, validateUpload } from './storage';
 import { LetterPatch } from './validation';
 import { getCategory, sanitizeExtra, missingRequired } from './categories';
 import { sanitizeExperience } from './experience';
 import { notifyWhatsApp } from './notifications';
 import { config } from './config';
+import { AppError, ORDER_STATUSES, OrderStatus, parseExtra, getOrderById, getLetterByOrder, decodeOrder, logEvent, touch, assertCustomerEditable, setStatus } from './order-core';
+import { getPlan } from './plans';
+import { uploadLimits } from './media';
+import { applyDiscount } from './discounts';
 
-export type OrderStatus = 'draft' | 'payment_pending' | 'proof_submitted' | 'payment_confirmed' | 'in_production' | 'published' | 'expired' | 'cancelled';
-export const ORDER_STATUSES: OrderStatus[] = ['draft', 'payment_pending', 'proof_submitted', 'payment_confirmed', 'in_production', 'published', 'expired', 'cancelled'];
-/** Estados em que o cliente ainda pode editar o conteúdo. */
-const CUSTOMER_EDITABLE: OrderStatus[] = ['draft', 'payment_pending', 'proof_submitted'];
-
-export class AppError extends Error {
-  constructor(public code: string, message: string, public status = 400) { super(message); }
-}
-
-export function parseExtra(raw: string | null | undefined): Record<string, string> {
-  try { const v = JSON.parse(raw || '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
-}
-
-// ---------------- Planos e ocasiões ----------------
-export function listPlans(activeOnly = true, kind?: 'carta' | 'evento'): Row[] {
-  const where: string[] = []; const params: unknown[] = [];
-  if (activeOnly) where.push('is_active = 1');
-  if (kind) { where.push('kind = ?'); params.push(kind === 'evento' ? 'evento' : 'carta'); }
-  const rows = all(`SELECT * FROM plans ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY sort_order, id`, ...params);
-  return rows.map(decoratePlan);
-}
-export function getPlan(id: number): Row | undefined {
-  const p = get('SELECT * FROM plans WHERE id = ?', id);
-  return p ? decoratePlan(p) : undefined;
-}
-/** Promoção com data de fim: `price` é sempre o preço normal (o que se cobra depois); `effective_price` é o que se cobra agora. */
-export function promoActive(p: Row): boolean {
-  return p.promo_price != null && p.promo_price >= 0 && p.promo_price < p.price && !!p.promo_ends_at && new Date(String(p.promo_ends_at).replace(' ', 'T') + 'Z') > new Date();
-}
-function decoratePlan(p: Row): Row {
-  const active = promoActive(p);
-  return { ...p, features: JSON.parse(p.features || '[]'), promo_active: active, promo_ends_at: active ? p.promo_ends_at : null, promo_price: active ? p.promo_price : null, effective_price: active ? p.promo_price : p.price };
-}
-export function listOccasions(): Row[] { return all('SELECT * FROM occasions WHERE is_active = 1 ORDER BY sort_order, id'); }
-
-// ---------------- Encomendas ----------------
-export function getOrderByToken(manageToken: string): Row | undefined {
-  if (!manageToken || manageToken.length < 20) return undefined;
-  return decodeOrder(get('SELECT * FROM orders WHERE manage_token = ?', manageToken));
-}
-export function getOrderById(id: number): Row | undefined { return decodeOrder(get('SELECT * FROM orders WHERE id = ?', id)); }
-
-/** Email e telefone do cliente ficam cifrados na base de dados; aqui são decifrados para uso no servidor. */
-function decodeOrder<T extends Row | undefined>(o: T): T {
-  if (!o) return o;
-  return { ...o, customer_email: decryptText(o.customer_email), customer_phone: decryptText(o.customer_phone) } as T;
-}
-/** Cifra contactos guardados em claro por versões anteriores (corre no arranque). */
-export function migrateEncryptedFields() {
-  for (const o of all<{ id: number; customer_email: string | null; customer_phone: string | null }>(
-    "SELECT id, customer_email, customer_phone FROM orders WHERE (customer_email IS NOT NULL AND customer_email NOT LIKE 'enc:%') OR (customer_phone IS NOT NULL AND customer_phone NOT LIKE 'enc:%')")) {
-    run('UPDATE orders SET customer_email = ?, customer_phone = ?, customer_email_idx = ?, customer_phone_idx = ? WHERE id = ?',
-      encryptText(decryptText(o.customer_email)), encryptText(decryptText(o.customer_phone)), blindIndex(decryptText(o.customer_email)), blindIndex(decryptText(o.customer_phone)), o.id);
-  }
-  for (const m of all<{ id: number; contact: string }>("SELECT id, contact FROM contact_messages WHERE contact NOT LIKE 'enc:%'")) run('UPDATE contact_messages SET contact = ? WHERE id = ?', encryptText(m.contact), m.id);
-}
-export function getLetterByOrder(orderId: number): Row | undefined { return get('SELECT * FROM letters WHERE order_id = ?', orderId); }
-export function getMemories(letterId: number): Row[] { return all('SELECT * FROM memories WHERE letter_id = ? ORDER BY sort_order, id', letterId); }
-export function getMedia(letterId: number): Row[] { return all('SELECT * FROM media_assets WHERE letter_id = ? ORDER BY sort_order, id', letterId); }
-
-function logEvent(orderId: number, from: string | null, to: string, actor: string, note?: string) {
-  run('INSERT INTO order_events(order_id, from_status, to_status, actor, note) VALUES(?,?,?,?,?)', orderId, from, to, actor, note ?? null);
-}
-function touch(orderId: number) { run(`UPDATE orders SET updated_at = datetime('now') WHERE id = ?`, orderId); }
+export { AppError, ORDER_STATUSES, parseExtra, getOrderByToken, getOrderById, migrateEncryptedFields, getLetterByOrder, getMemories } from './order-core';
+export type { OrderStatus } from './order-core';
+export * from './plans';
+export * from './media';
+export * from './public-letter';
+export * from './replies';
+export * from './analytics';
+export * from './discounts';
 
 export function createOrder(input: {
   occasion: string; planId: number; recipientName: string; senderName: string; customerName?: string; title: string;
@@ -106,12 +56,6 @@ export function createOrder(input: {
     db.exec('COMMIT');
     return { order: getOrderById(orderId)!, letter: getLetterByOrder(orderId)! };
   } catch (e) { db.exec('ROLLBACK'); throw e; }
-}
-
-function assertCustomerEditable(order: Row) {
-  if (!CUSTOMER_EDITABLE.includes(order.order_status)) {
-    throw new AppError('locked', 'Esta Carta QR já foi confirmada e não pode ser editada aqui. Contacta-nos pelo WhatsApp para pedir alterações.', 403);
-  }
 }
 
 export function updateLetter(order: Row, patch: LetterPatch, actor: 'customer' | 'admin' = 'customer') {
@@ -159,73 +103,7 @@ export function updateLetter(order: Row, patch: LetterPatch, actor: 'customer' |
   touch(order.id);
 }
 
-// ---------------- Media ----------------
-export function uploadLimits() {
-  const s = getSettings();
-  return { image: Number(s.max_image_mb) || 8, video: Number(s.max_video_mb) || 50, audio: Number(s.max_audio_mb) || 15, proof: Number(s.max_proof_mb) || 8 };
-}
-
-export function addMedia(order: Row, kind: Exclude<MediaKind, 'proof'>, buf: Buffer, originalName: string): Row {
-  assertCustomerEditable(order);
-  const plan = getPlan(order.plan_id)!;
-  const letter = getLetterByOrder(order.id)!;
-  const check = validateUpload(kind, buf, uploadLimits());
-  if (!check.ok) throw new AppError('upload_invalid', check.error, 415);
-  const count = (types: string[]) => (get<{ n: number }>(`SELECT COUNT(*) n FROM media_assets WHERE letter_id = ? AND type IN (${types.map(() => '?').join(',')})`, letter.id, ...types)?.n) || 0;
-  if (kind === 'photo' && count(['photo']) >= plan.max_photos) throw new AppError('limit', `O plano ${plan.name} permite até ${plan.max_photos} fotografias.`, 409);
-  if (kind === 'video' && count(['video']) >= plan.max_videos) throw new AppError('limit', plan.max_videos === 0 ? `O plano ${plan.name} não inclui vídeo.` : `O plano ${plan.name} permite até ${plan.max_videos} vídeo(s).`, 409);
-  if ((kind === 'audio' || kind === 'music') && count(['audio', 'music']) >= plan.max_audio_files) throw new AppError('limit', plan.max_audio_files === 0 ? `O plano ${plan.name} não inclui áudio.` : `O plano ${plan.name} permite até ${plan.max_audio_files} ficheiro(s) de áudio.`, 409);
-  if (kind === 'cover') { // só uma capa
-    for (const old of all('SELECT id, storage_path FROM media_assets WHERE letter_id = ? AND type = ?', letter.id, 'cover')) { removeFile(old.storage_path); run('DELETE FROM media_assets WHERE id = ?', old.id); }
-  }
-  if (check.mime.startsWith('image/')) buf = stripImageMetadata(buf, check.mime); // sem localização GPS
-  const rel = saveBuffer(order.id, buf, check.ext);
-  const next = (get<{ m: number }>('SELECT COALESCE(MAX(sort_order), -1) + 1 m FROM media_assets WHERE letter_id = ?', letter.id)?.m) || 0;
-  const r = run(`INSERT INTO media_assets(letter_id, type, storage_path, file_size, mime_type, original_name, sort_order) VALUES(?,?,?,?,?,?,?)`,
-    letter.id, kind, rel, buf.length, check.mime, cleanText(originalName, 120), next);
-  const id = Number(r.lastInsertRowid);
-  if (kind === 'cover') run('UPDATE letters SET cover_media_id = ? WHERE id = ?', id, letter.id);
-  touch(order.id);
-  return get('SELECT * FROM media_assets WHERE id = ?', id)!;
-}
-
-export function removeMedia(order: Row, mediaId: number) {
-  assertCustomerEditable(order);
-  const letter = getLetterByOrder(order.id)!;
-  const m = get('SELECT * FROM media_assets WHERE id = ? AND letter_id = ?', mediaId, letter.id);
-  if (!m) throw new AppError('not_found', 'Ficheiro não encontrado.', 404);
-  removeFile(m.storage_path);
-  run('DELETE FROM media_assets WHERE id = ?', mediaId);
-  if (letter.cover_media_id === mediaId) run('UPDATE letters SET cover_media_id = NULL WHERE id = ?', letter.id);
-  touch(order.id);
-}
-
-export function updateMediaMeta(order: Row, mediaId: number, meta: { caption?: string; altText?: string; setCover?: boolean; sortOrder?: number }) {
-  assertCustomerEditable(order);
-  const letter = getLetterByOrder(order.id)!;
-  const m = get('SELECT * FROM media_assets WHERE id = ? AND letter_id = ?', mediaId, letter.id);
-  if (!m) throw new AppError('not_found', 'Ficheiro não encontrado.', 404);
-  if (meta.caption !== undefined) run('UPDATE media_assets SET caption = ? WHERE id = ?', cleanText(meta.caption, 200), mediaId);
-  if (meta.altText !== undefined) run('UPDATE media_assets SET alt_text = ? WHERE id = ?', cleanText(meta.altText, 200), mediaId);
-  if (meta.setCover && ['photo', 'cover'].includes(m.type)) run('UPDATE letters SET cover_media_id = ? WHERE id = ?', mediaId, letter.id);
-  if (meta.sortOrder !== undefined) run('UPDATE media_assets SET sort_order = ? WHERE id = ?', meta.sortOrder, mediaId);
-}
-
-export function reorderPhotos(order: Row, ids: number[]) {
-  assertCustomerEditable(order);
-  const letter = getLetterByOrder(order.id)!;
-  ids.forEach((id, i) => run('UPDATE media_assets SET sort_order = ? WHERE id = ? AND letter_id = ?', i, id, letter.id));
-}
-
-// ---------------- Fluxo de estados ----------------
 const LETTER_COLUMNS = ['title', 'intro', 'main_message', 'closing_message', 'how_met', 'admire', 'tone', 'theme', 'special_date', 'music_mode', 'ambient', 'music_rights_ack', 'allow_reply', 'extra', 'recipient_name', 'sender_name', 'unlock_at', 'ai_used', 'pin_hash', 'experience'] as const;
-const ORDER_STATUS_COLUMNS = ['payment_status', 'payment_proof_path', 'payment_proof_mime', 'payment_note', 'completed_at', 'discount_code', 'discount_amount', 'amount'] as const;
-function setStatus(order: Row, to: OrderStatus, actor: string, note?: string, extra: Record<string, unknown> = {}) {
-  const cols = Object.keys(extra);
-  assertIdentifiers(cols, ORDER_STATUS_COLUMNS);
-  run(`UPDATE orders SET order_status = ?, ${cols.map(c => `${c} = ?`).join(', ')}${cols.length ? ',' : ''} updated_at = datetime('now') WHERE id = ?`, to, ...cols.map(c => extra[c]), order.id);
-  logEvent(order.id, order.order_status, to, actor, note);
-}
 
 /** Cliente conclui o wizard → aguarda pagamento. */
 export function submitOrder(order: Row) {
@@ -331,37 +209,6 @@ export function expireDue(): number {
   return due.length;
 }
 
-// ---------------- Carta pública ----------------
-export type PublicLetterState =
-  | { state: 'notfound' } | { state: 'unpublished' } | { state: 'blocked' } | { state: 'expired' } | { state: 'locked'; unlockAt: string; letter: Row; order: Row }
-  | { state: 'ok'; letter: Row; order: Row };
-
-export function resolvePublicLetter(token: string): PublicLetterState {
-  if (!token || token.length < 20 || token.length > 100) return { state: 'notfound' };
-  const letter = get('SELECT * FROM letters WHERE secure_token = ?', token);
-  if (!letter) return { state: 'notfound' };
-  const order = getOrderById(letter.order_id)!;
-  if (letter.is_blocked || order.order_status === 'cancelled') return { state: 'blocked' };
-  if (order.order_status === 'expired' || (letter.expires_at && new Date(letter.expires_at.replace(' ', 'T') + 'Z') <= new Date())) {
-    if (order.order_status === 'published') setStatus(order, 'expired', 'system', 'Expirada automaticamente');
-    return { state: 'expired' };
-  }
-  if (!letter.is_published || order.order_status !== 'published') return { state: 'unpublished' };
-  if (letter.unlock_at && new Date(letter.unlock_at.replace(' ', 'T') + 'Z') > new Date()) return { state: 'locked', unlockAt: new Date(letter.unlock_at.replace(' ', 'T') + 'Z').toISOString(), letter, order };
-  return { state: 'ok', letter, order };
-}
-
-export function verifyPin(letter: Row, pin: string): boolean { return !!letter.pin_hash && bcrypt.compareSync(pin, letter.pin_hash); }
-// O cookie fica ligado ao PIN atual: se o PIN mudar, os acessos antigos deixam de valer.
-const pinStamp = (letter: Row) => hmac(`pinstamp:${letter.id}:${letter.pin_hash || ''}`).slice(0, 16);
-export function pinCookieValue(letter: Row): string { return sign(`pin:${letter.id}:${Math.floor(Date.now() / 1000) + 6 * 3600}:${pinStamp(letter)}`); }
-export function pinCookieValid(letter: Row, cookie: string | undefined): boolean {
-  const p = verifySigned(cookie);
-  if (!p) return false;
-  const [tag, id, exp, stamp] = p.split(':');
-  return tag === 'pin' && Number(id) === letter.id && Number(exp) > Date.now() / 1000 && !!stamp && safeEqual(stamp, pinStamp(letter));
-}
-
 // ---------------- Admin: listagem e métricas ----------------
 export function listOrders(opts: { status?: string; q?: string }): Row[] {
   const where: string[] = []; const params: any[] = [];
@@ -410,128 +257,4 @@ export function changePlanOrOccasion(order: Row, input: { planId?: number; occas
     run('UPDATE letters SET extra = ?, allow_reply = ? WHERE id = ?', JSON.stringify(sanitizeExtra(newOccasion, parseExtra(letter.extra))), cat.proposal ? 1 : 0, letter.id);
   }
   touch(order.id);
-}
-
-// ---------------- Respostas (pedidos) e confirmações de presença (eventos) ----------------
-export type ReplyKind = 'message' | 'answer' | 'reaction' | 'voucher' | 'capsule';
-export function addReply(letter: Row, kind: ReplyKind, author: string, message: string, openAt: string | null = null) {
-  run('INSERT INTO letter_replies(letter_id, kind, author, message, open_at) VALUES(?,?,?,?,?)', letter.id, kind, cleanText(author, 60), cleanText(message, 1000), openAt);
-}
-export function listReplies(letterId: number): Row[] { return all('SELECT * FROM letter_replies WHERE letter_id = ? ORDER BY id DESC', letterId); }
-
-export type RsvpInput = { name: string; attending: 'yes' | 'no' | 'maybe'; guests: number; message?: string };
-export function rsvpSummary(letterId: number) {
-  const rows = all<{ attending: string; n: number; g: number }>('SELECT attending, COUNT(*) n, COALESCE(SUM(guests),0) g FROM rsvps WHERE letter_id = ? GROUP BY attending', letterId);
-  const pick = (a: string) => rows.find(r => r.attending === a);
-  return { yes: pick('yes')?.n || 0, yesGuests: pick('yes')?.g || 0, no: pick('no')?.n || 0, maybe: pick('maybe')?.n || 0 };
-}
-export function listRsvps(letterId: number): Row[] { return all('SELECT * FROM rsvps WHERE letter_id = ? ORDER BY id DESC', letterId); }
-
-export function rsvpStatus(letter: Row, order: Row): { open: boolean; reason?: string } {
-  const cat = getCategory(order.occasion); const plan = getPlan(order.plan_id)!;
-  if (!cat.rsvp) return { open: false, reason: 'Este convite não tem confirmação de presença.' };
-  const extra = parseExtra(letter.extra);
-  const today = new Date().toISOString().slice(0, 10);
-  if (extra.rsvpDeadline && today > extra.rsvpDeadline) return { open: false, reason: 'O prazo para confirmar presença já terminou.' };
-  if (letter.special_date && today > letter.special_date) return { open: false, reason: 'Este evento já decorreu.' };
-  if (plan.max_guests > 0 && rsvpSummary(letter.id).yesGuests >= plan.max_guests) return { open: false, reason: 'A lista de confirmações está completa. Fala com os anfitriões.' };
-  return { open: true };
-}
-
-export function addRsvp(letter: Row, order: Row, input: RsvpInput) {
-  const st = rsvpStatus(letter, order);
-  if (!st.open) throw new AppError('rsvp_closed', st.reason || 'As confirmações estão encerradas.', 409);
-  const plan = getPlan(order.plan_id)!;
-  const name = cleanText(input.name, 80); if (!name) throw new AppError('validation', 'Indica o teu nome.', 422);
-  const guests = input.attending === 'yes' ? Math.min(Math.max(1, Math.round(input.guests) || 1), 10) : 1;
-  const existing = get('SELECT id, guests, attending FROM rsvps WHERE letter_id = ? AND lower(guest_name) = lower(?)', letter.id, name);
-  if (input.attending === 'yes' && plan.max_guests > 0) {
-    const already = rsvpSummary(letter.id).yesGuests - (existing && existing.attending === 'yes' ? existing.guests : 0);
-    if (already + guests > plan.max_guests) throw new AppError('rsvp_full', 'Já não há lugares suficientes para este número de pessoas. Fala com os anfitriões.', 409);
-  }
-  if (existing) run('UPDATE rsvps SET attending = ?, guests = ?, message = ?, created_at = datetime(\'now\') WHERE id = ?', input.attending, guests, cleanText(input.message || '', 300), existing.id);
-  else run('INSERT INTO rsvps(letter_id, guest_name, attending, guests, message) VALUES(?,?,?,?,?)', letter.id, name, input.attending, guests, cleanText(input.message || '', 300));
-  return { updated: !!existing };
-}
-
-export function rsvpCsv(letterId: number): string {
-  const esc = (v: unknown) => { let t = String(v ?? ''); if (/^[=+\-@]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
-  const rows = listRsvps(letterId).reverse();
-  return '\uFEFF' + ['Nome,Resposta,Pessoas,Mensagem,Data', ...rows.map(r => [r.guest_name, ({ yes: 'Vai', no: 'Não vai', maybe: 'Talvez' } as Record<string, string>)[r.attending], r.attending === 'yes' ? r.guests : 0, r.message, r.created_at].map(esc).join(','))].join('\n');
-}
-
-// ---------------- Aberturas e analytics (sem dados pessoais) ----------------
-const today = () => new Date().toISOString().slice(0, 10);
-export function trackLetterView(letterId: number) {
-  run(`INSERT INTO letter_views(letter_id, day, count) VALUES(?,?,1) ON CONFLICT(letter_id, day) DO UPDATE SET count = count + 1`, letterId, today());
-}
-export function viewStats(letterId: number) {
-  const r = get<{ total: number; last: string | null }>('SELECT COALESCE(SUM(count),0) total, MAX(day) last FROM letter_views WHERE letter_id = ?', letterId);
-  return { total: r?.total || 0, last: r?.last || null };
-}
-export const TRACK_EVENTS = ['landing_view', 'wizard_start', 'category_view', 'pricing_view'] as const;
-export function trackEvent(name: string) {
-  if (!(TRACK_EVENTS as readonly string[]).includes(name)) return false;
-  run(`INSERT INTO analytics_events(day, name, count) VALUES(?,?,1) ON CONFLICT(day, name) DO UPDATE SET count = count + 1`, today(), name);
-  return true;
-}
-export function analyticsSummary(days = 30) {
-  const rows = all<{ name: string; n: number }>(`SELECT name, SUM(count) n FROM analytics_events WHERE day >= date('now', ?) GROUP BY name`, `-${days} days`);
-  const g = (n: string) => rows.find(r => r.name === n)?.n || 0;
-  const orders = get<{ n: number }>(`SELECT COUNT(*) n FROM orders WHERE created_at >= datetime('now', ?)`, `-${days} days`)?.n || 0;
-  const paid = get<{ n: number }>(`SELECT COUNT(*) n FROM orders WHERE payment_status = 'confirmed' AND created_at >= datetime('now', ?)`, `-${days} days`)?.n || 0;
-  return { landing: g('landing_view'), wizard: g('wizard_start'), category: g('category_view'), pricing: g('pricing_view'), orders, paid };
-}
-
-
-// ---------------- Códigos de desconto ----------------
-export type DiscountRow = { id: number; code: string; kind: 'percent' | 'fixed'; value: number; applies_to: 'all' | 'carta' | 'evento'; valid_until: string | null; max_uses: number; used_count: number; is_active: number };
-export const normalizeCode = (c: string) => String(c || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 24);
-export const MIN_FINAL_PRICE = 500;
-export function listDiscountCodes(): DiscountRow[] { return all<DiscountRow>('SELECT * FROM discount_codes ORDER BY id DESC'); }
-export function hasActiveDiscountCodes(): boolean { return !!get('SELECT 1 FROM discount_codes WHERE is_active = 1 AND (valid_until IS NULL OR valid_until > datetime(\'now\')) AND (max_uses = 0 OR used_count < max_uses)'); }
-export function createDiscountCode(input: { code: string; kind: string; value: number; appliesTo: string; validUntil?: string | null; maxUses?: number }) {
-  const code = normalizeCode(input.code); if (code.length < 3) throw new AppError('discount', 'O código deve ter 3 a 24 letras ou números.', 422);
-  const kind = input.kind === 'fixed' ? 'fixed' : 'percent'; const value = Math.round(Number(input.value));
-  if (!Number.isFinite(value) || value <= 0) throw new AppError('discount', 'Indica o valor do desconto.', 422);
-  if (kind === 'percent' && value > 90) throw new AppError('discount', 'O desconto máximo é 90 %.', 422);
-  const applies = ['carta', 'evento'].includes(input.appliesTo) ? input.appliesTo : 'all';
-  const until = input.validUntil ? luandaToUtc(input.validUntil) : null; if (input.validUntil && !until) throw new AppError('discount', 'Data de validade inválida.', 422);
-  if (get('SELECT 1 FROM discount_codes WHERE code = ?', code)) throw new AppError('discount', 'Já existe um código com esse nome.', 409);
-  run('INSERT INTO discount_codes(code, kind, value, applies_to, valid_until, max_uses) VALUES(?,?,?,?,?,?)', code, kind, value, applies, until, Math.max(0, Math.round(input.maxUses || 0)));
-}
-export function toggleDiscountCode(id: number) { run('UPDATE discount_codes SET is_active = 1 - is_active WHERE id = ?', id); }
-export function deleteDiscountCode(id: number) { run('DELETE FROM discount_codes WHERE id = ?', id); }
-
-/** Valida o código para um plano e devolve o valor a descontar (nunca deixa o preço final abaixo de MIN_FINAL_PRICE). */
-export function computeDiscount(codeRaw: string, plan: Row): { code: string; amount: number } {
-  const code = normalizeCode(codeRaw);
-  const d = get<DiscountRow>('SELECT * FROM discount_codes WHERE code = ?', code);
-  if (!d || !d.is_active) throw new AppError('discount', 'Código inválido.', 422);
-  if (d.valid_until && new Date(d.valid_until.replace(' ', 'T') + 'Z') <= new Date()) throw new AppError('discount', 'Este código já expirou.', 422);
-  if (d.max_uses > 0 && d.used_count >= d.max_uses) throw new AppError('discount', 'Este código já atingiu o limite de utilizações.', 422);
-  if (d.applies_to !== 'all' && d.applies_to !== (plan.kind || 'carta')) throw new AppError('discount', d.applies_to === 'evento' ? 'Este código só vale para pacotes de Eventos.' : 'Este código só vale para planos de cartas.', 422);
-  if (plan.promo_active && getSetting('discount_stack_with_promo') !== '1') throw new AppError('discount', 'Este plano já está com preço promocional; o código não é acumulável.', 422);
-  const raw = d.kind === 'percent' ? Math.floor(plan.effective_price * d.value / 100) : d.value;
-  const amount = Math.max(0, Math.min(raw, plan.effective_price - MIN_FINAL_PRICE));
-  if (amount <= 0) throw new AppError('discount', 'Este código não se aplica a este plano.', 422);
-  return { code: d.code, amount };
-}
-export function applyDiscount(order: Row, codeRaw: string) {
-  assertCustomerEditable(order);
-  const plan = getPlan(order.plan_id)!; const r = computeDiscount(codeRaw, plan);
-  run('UPDATE orders SET discount_code = ?, discount_amount = ?, amount = ? WHERE id = ?', r.code, r.amount, plan.effective_price - r.amount, order.id);
-  touch(order.id);
-}
-export function removeDiscount(order: Row) {
-  assertCustomerEditable(order); const plan = getPlan(order.plan_id)!;
-  run('UPDATE orders SET discount_code = NULL, discount_amount = 0, amount = ? WHERE id = ?', plan.effective_price, order.id); touch(order.id);
-}
-
-/** Código oferecido a quem se inscreve na newsletter (definido nas configurações), se ainda estiver válido. */
-export function newsletterOffer(): { code: string; label: string } | null {
-  const code = normalizeCode(getSetting('newsletter_code')); if (!code) return null;
-  const d = get<DiscountRow>('SELECT * FROM discount_codes WHERE code = ?', code);
-  if (!d || !d.is_active || (d.valid_until && new Date(d.valid_until.replace(' ', 'T') + 'Z') <= new Date()) || (d.max_uses > 0 && d.used_count >= d.max_uses)) return null;
-  return { code: d.code, label: d.kind === 'percent' ? `${d.value} % de desconto` : `${d.value} Kz de desconto` };
 }

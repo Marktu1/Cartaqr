@@ -6,7 +6,7 @@ services:
     runtime: docker
     plan: starter            # instância paga mais pequena (sem "adormecer"); o plano grátis não aceita discos
     region: frankfurt
-    branch: claude/ui-design-system-5w68uz
+    branch: main
     healthCheckPath: /
     disk:
       name: cartaqr-data
