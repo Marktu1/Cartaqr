@@ -2,8 +2,7 @@ import { describeReply } from '@/lib/experience';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getOrderByToken, getLetterByOrder, getPlan, expireDue, rsvpSummary, listRsvps, viewStats } from '@/lib/orders';
-import { all } from '@/lib/db';
+import { getOrderByToken, getLetterByOrder, getPlan, expireDue, rsvpSummary, listRsvps, viewStats, listReplies } from '@/lib/orders';
 import { config } from '@/lib/config';
 import { formatDate, formatMoney, formatLuanda, STATUS_LABEL } from '@/lib/format';
 import { getSettings, whatsappLink } from '@/lib/settings';
@@ -21,7 +20,7 @@ export default async function MinhaPage(props: { params: Promise<{ token: string
   expireDue();
   const order = getOrderByToken(params.token); if (!order) notFound();
   const letter = getLetterByOrder(order.id)!; const plan = getPlan(order.plan_id)!; const s = getSettings();
-  const replies = all('SELECT * FROM letter_replies WHERE letter_id = ? ORDER BY id DESC', letter.id);
+  const replies = listReplies(letter.id);
   const cat = getCategory(order.occasion); const isEvent = cat.kind === 'evento';
   const sum = rsvpSummary(letter.id); const guestsList = isEvent ? listRsvps(letter.id) : []; const views = viewStats(letter.id);
   const status = order.order_status as string;

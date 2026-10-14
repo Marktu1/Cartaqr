@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { login, logout, requireAdmin, logAdmin } from '@/lib/auth';
 import * as O from '@/lib/orders';
-import { run } from '@/lib/db';
 import { setSetting } from '@/lib/settings';
 import { cleanText, ipFromHeaders, checkBot, consumeFormToken } from '@/lib/security';
 import { THEMES } from '@/lib/validation';
@@ -91,14 +90,14 @@ export async function savePlanAction(form: FormData) {
     if (t > Date.now() + 90 * 86400_000) redirect('/admin/settings?msg=' + encodeURIComponent('Erro: a promoção pode durar no máximo 90 dias.'));
     promoPrice = pp; promoEndsAt = promoEnds;
   }
-  run(`UPDATE plans SET name = ?, description = ?, price = ?, currency = ?, max_photos = ?, max_videos = ?, max_audio_files = ?, max_guests = ?, duration_days = ?, features = ?, is_active = ?, promo_price = ?, promo_ends_at = ? WHERE id = ?`,
-    cleanText(String(form.get('name')), 60), cleanText(String(form.get('description')), 200), price, cleanText(String(form.get('currency') || 'Kz'), 8) || 'Kz', n('max_photos'), n('max_videos'), n('max_audio_files'), n('max_guests'), Math.max(1, n('duration_days')), JSON.stringify(features), form.get('is_active') ? 1 : 0, promoPrice, promoEndsAt, id);
+  O.updatePlan(id, { name: cleanText(String(form.get('name')), 60), description: cleanText(String(form.get('description')), 200), price, currency: cleanText(String(form.get('currency') || 'Kz'), 8) || 'Kz',
+    maxPhotos: n('max_photos'), maxVideos: n('max_videos'), maxAudio: n('max_audio_files'), maxGuests: n('max_guests'), durationDays: Math.max(1, n('duration_days')), features, isActive: !!form.get('is_active'), promoPrice, promoEndsAt });
   logAdmin(adminId, 'save_plan', String(id)); revalidatePath('/', 'layout'); redirect('/admin/settings?msg=' + encodeURIComponent('Plano guardado.'));
 }
 export async function saveOccasionAction(form: FormData) {
   const adminId = await requireAdmin(); const id = Number(form.get('id'));
   if (!Number.isInteger(id) || id <= 0) redirect('/admin/settings');
-  run('UPDATE occasions SET name = ?, description = ?, default_theme = ?, is_active = ? WHERE id = ?', cleanText(String(form.get('name')), 60), cleanText(String(form.get('description')), 120), ((THEMES as readonly string[]).includes(String(form.get('default_theme'))) ? String(form.get('default_theme')) : 'romantico'), form.get('is_active') ? 1 : 0, id);
+  O.updateOccasion(id, { name: cleanText(String(form.get('name')), 60), description: cleanText(String(form.get('description')), 120), defaultTheme: ((THEMES as readonly string[]).includes(String(form.get('default_theme'))) ? String(form.get('default_theme')) : 'romantico'), isActive: !!form.get('is_active') });
   logAdmin(adminId, 'save_occasion', String(id)); revalidatePath('/', 'layout'); redirect('/admin/settings?msg=' + encodeURIComponent('Ocasião guardada.'));
 }
 

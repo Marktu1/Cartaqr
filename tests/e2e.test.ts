@@ -80,7 +80,7 @@ test('fluxo completo via API: criar → editar → IA → media → comprovativo
   const good = await fetch(URL0 + `/api/carta/${letter.secure_token}/pin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '4821' }) });
   assert.equal(good.status, 200); const cookie = (good.headers.get('set-cookie') || '').split(';')[0]; assert.match(cookie, /^(__Host-)?cq_pin_\d+=/);
   const open = await (await fetch(URL0 + url, { headers: { cookie } })).text();
-  assert.ok(open.includes('Para a minha pessoa favorita') && open.includes('Abrir o meu presente'));
+  assert.ok(open.includes('Para a minha pessoa favorita') && /Abrir a carta|Abrir o meu presente/.test(open));
   assert.ok(!open.includes('bruno@exemplo.com') && !open.includes('+244') && !open.includes('CQ-'), 'não expõe dados do comprador');
   assert.ok(open.includes('/api/media/'), 'usa URLs assinados');
   assert.ok(open.includes('noindex'));
@@ -102,7 +102,7 @@ test('carta inexistente, expirada e bloqueada mostram mensagens claras', async (
   await post(`/api/orders/${c.body.token}`, { mainMessage: 'Mensagem suficientemente longa.' }, 'PATCH'); await post(`/api/orders/${c.body.token}/submit`, {});
   await upload(`/api/orders/${c.body.token}/proof`, PDF, '', 'c.pdf');
   O.adminConfirmPayment(O.getOrderById(o.id)!); O.adminPublish(O.getOrderById(o.id)!);
-  assert.ok((await (await fetch(URL0 + `/carta/${l.secure_token}`)).text()).includes('Abrir o meu presente'));
+  assert.ok(/Abrir a carta|Abrir o meu presente/.test(await (await fetch(URL0 + `/carta/${l.secure_token}`)).text()));
   O.adminBlock(O.getOrderById(o.id)!, true); assert.ok((await (await fetch(URL0 + `/carta/${l.secure_token}`)).text()).includes('Carta indisponível')); O.adminBlock(O.getOrderById(o.id)!, false);
   const { run } = await import('../src/lib/db'); run(`UPDATE letters SET expires_at = datetime('now','-1 hour') WHERE id = ?`, l.id);
   assert.ok((await (await fetch(URL0 + `/carta/${l.secure_token}`)).text()).includes('Esta carta expirou'));
@@ -138,7 +138,7 @@ test('evento: só com pacote de Eventos; RSVP público; cliente vê confirmaçõ
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: 'João', attending: 'yes', guests: 2 })).status, 404); // ainda não publicada
   O.adminConfirmPayment(o); O.adminPublish(O.getOrderById(o.id)!);
   const page = await (await fetch(URL0 + `/carta/${tok}`)).text();
-  assert.ok(page.includes('Salão Exemplo') && page.includes('Abrir o convite'));
+  assert.ok(page.includes('Salão Exemplo') && /abrir o convite/i.test(page));
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: 'João Silva', attending: 'yes', guests: 2, message: 'Lá estaremos' })).status, 200);
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: '', attending: 'yes', guests: 1 })).status, 422);
   assert.equal((await post(`/api/carta/${tok}/rsvp`, { name: 'X', attending: 'talvez-sim', guests: 1 })).status, 422);

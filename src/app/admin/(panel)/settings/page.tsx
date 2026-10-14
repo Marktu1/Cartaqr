@@ -1,17 +1,15 @@
 import { getSettings } from '@/lib/settings';
-import { requireAdmin } from '@/lib/auth';
-import { listPlans, listOccasions } from '@/lib/orders';
+import { requireAdmin, recentAdminLogs } from '@/lib/auth';
+import { listPlans, listAllOccasions, listPlanPromos, listDiscountCodes } from '@/lib/orders';
 import { THEME_INFO } from '@/lib/themes';
 import * as A from '../../actions';
-import { all } from '@/lib/db';
 import { formatDate, formatMoney, utcToLuanda } from '@/lib/format';
-import { listDiscountCodes } from '@/lib/orders';
 
 export default async function Settings(props: { searchParams: Promise<{ msg?: string }> }) {
   await requireAdmin();
   const searchParams = await props.searchParams;
-  const s = getSettings(); const plans = listPlans(false); const occasions = all('SELECT * FROM occasions ORDER BY sort_order, id');
-  const codes = listDiscountCodes(); const rawPlans = all('SELECT id, promo_price, promo_ends_at FROM plans'); const logs = all('SELECT * FROM admin_logs ORDER BY id DESC LIMIT 25');
+  const s = getSettings(); const plans = listPlans(false); const occasions = listAllOccasions();
+  const codes = listDiscountCodes(); const rawPlans = listPlanPromos(); const logs = recentAdminLogs(25);
   return (
     <div className="space-y-8">
       <h1 className="h-display text-3xl font-semibold text-wine">Configurações</h1>

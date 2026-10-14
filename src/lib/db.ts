@@ -134,6 +134,9 @@ export function closeDb() {
 
 // Helpers tipados; usam SEMPRE parâmetros (proteção contra SQL injection).
 export type Row = Record<string, any>;
+/** Cópia consistente da base de dados para um ficheiro, mesmo com o site a funcionar. */
+export function backupTo(file: string) { getDb().exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`); }
+
 export function all<T = Row>(sql: string, ...params: any[]): T[] { return getDb().prepare(sql).all(...params) as T[]; }
 export function get<T = Row>(sql: string, ...params: any[]): T | undefined { return getDb().prepare(sql).get(...params) as T | undefined; }
 export function run(sql: string, ...params: any[]) { return getDb().prepare(sql).run(...params) as { changes: number; lastInsertRowid: number | bigint }; }

@@ -16,3 +16,9 @@ O mapa do código está em `graphify-out/` (`graph.json` + `GRAPH_REPORT.md`, bl
 
 ## Verificações antes de juntar ao main
 `npx tsc --noEmit -p .`, `npm test`, `npm run build`. O Render publica o ramo `main` automaticamente.
+
+## Camadas do back-end (regra)
+- **Rotas e páginas** (`src/app/**`): só limitam pedidos, verificam acesso e validam o formato (zod). Nunca importam `@/lib/db` (exceto o tipo `Row`).
+- **Negócio** (`src/lib/*.ts`): regras e SQL por domínio — `order-core` (tipos, erros, estados), `orders` (encomendas e ações do admin; também re-exporta tudo), `plans`, `media`, `public-letter`, `replies`, `discounts`, `analytics`, `messages`, `backup`.
+- **Dados** (`src/lib/db.ts`): ligação SQLite, migrações e `all/get/run`.
+- Erros de negócio: `throw new AppError(code, mensagem, status)`; as rotas devolvem com `handle(e)`.
