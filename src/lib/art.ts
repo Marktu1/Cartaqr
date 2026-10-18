@@ -14,18 +14,19 @@ export const ART = {
 export const CATEGORY_ART: Record<string, Art> = {
   amor: a('amor', 'Casal angolano a partilhar uma carta digital, com uma rosa vermelha na mesa', '50% 35%'),
   aniversario: a('aniversario', 'Jovem angolana sorridente mostra uma carta digital no telemóvel', '50% 30%'),
-  'pedido-namoro': a('marginal', 'Jovem sorri ao ler uma mensagem no telemóvel na Marginal de Luanda', '62% 50%'),
+  'pedido-namoro': a('pedido-namoro', 'Jovem angolano entrega o telemóvel à namorada, que leva a mão à boca, surpreendida', '50% 30%'),
   'pedido-casamento': a('pedido-casamento', 'Pedido de casamento na Marginal de Luanda ao pôr do sol'),
-  'dia-namorados': a('envelope', 'Envelope dourado com selo de cera sobre tecido bordô'),
-  distancia: a('produto', 'Telemóvel com um envelope dourado no ecrã'),
+  'dia-namorados': a('dia-namorados', 'Casal angolano num jantar à luz das velas, ela emocionada a ler uma carta no telemóvel', '50% 40%'),
+  distancia: a('distancia', 'Jovem angolana junto à janela, com vista para Luanda, sorri ao ler uma carta no telemóvel', '45% 45%'),
   formatura: a('formatura', 'Recém-formado angolano de beca mostra uma carta digital no telemóvel', '50% 30%'),
+  'dia-pai': a('dia-pai', 'Pai e filho angolanos abraçados a ver uma carta no telemóvel', '50% 30%'),
   'dia-mae': a('dia-mae', 'Mãe e filha angolanas abraçadas a ver uma carta no telemóvel', '50% 35%'),
   familia: a('familia', 'Família angolana reunida à mesa num jantar de festa'),
   amizade: a('amizade', 'Três amigos angolanos a rir numa esplanada em Luanda'),
   despedida: a('despedida', 'Lírios brancos e uma vela acesa junto a um telemóvel'),
   'convite-casamento': a('casamento', 'Noivos angolanos sorridentes a ver o convite no telemóvel', '50% 30%'),
   'convite-festa': a('eventos', 'Mesa de festa elegante com flores bordô e um convite digital'),
-  'convite-batizado': a('cha-de-bebe', 'Futura mãe angolana sorri ao ver um convite no telemóvel', '50% 30%'),
+  'convite-batizado': a('batizado', 'Pais angolanos com o bebé vestido de branco numa igreja com flores, a ver o convite no telemóvel', '50% 30%'),
   'convite-evento': a('empresarial', 'Empresária angolana num escritório em Luanda com o telemóvel na mão', '40% 50%'),
 };
 
